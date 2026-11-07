@@ -1,4 +1,4 @@
-import {createContext, useCallback, useContext, useMemo, useState} from "react";
+import {createContext, useCallback, useContext, useEffect, useMemo, useState} from "react";
 import {getLocale, saveLocale} from "./constants";
 import {useTranslation} from "react-i18next";
 
@@ -10,10 +10,7 @@ export type Locale = {
 export let locales: Locale[] = [
   {code: "en", label: "English"},
   {code: "uz", label: "O'zbek"},
-  {code: "uz-Cyrl", label: "Ўзбек"},
   {code: "ru", label: "Русский"},
-  {code: "ko", label: "한국어"},
-  {code: "tr", label: "Türkçe"},
 ];
 
 // The languages a printed document can be written in, with "follow the business
@@ -38,6 +35,12 @@ function getInitialLocale(): Locale {
 export function LocaleProvider({children}: {children: React.ReactNode}) {
   let {i18n} = useTranslation();
   let [locale, setLocaleState] = useState<Locale>(getInitialLocale);
+
+  // i18next starts on English; adopt the saved choice once the provider mounts so
+  // the UI's language and the loaded translations never disagree.
+  useEffect(() => {
+    if (i18n.language !== locale.code) i18n.changeLanguage(locale.code);
+  }, [i18n, locale.code]);
 
   let setLocale = useCallback(
     (newLocale: Locale) => {

@@ -1,1 +1,27 @@
-{}
+{
+  "arpa": "Revenue per paying client",
+  "arpaHint": "MRR divided by paying clients",
+  "byMonth": "By month (UZS)",
+  "churned": "Churned",
+  "clientsCol": "Clients",
+  "clientsKept": "Clients kept",
+  "cohorts": "Cohorts",
+  "cohortsHint": "Each row is the clients who signed that month; each column is months since. Most loss in the first three months means onboarding is where to look.",
+  "contraction": "Contraction",
+  "expansion": "Expansion",
+  "grr": "Gross revenue retention",
+  "grrHint": "The same without growth — what was kept.",
+  "hint": "Where recurring revenue comes from, where it goes, and whether the clients who sign stay.",
+  "m0": "M0",
+  "movementHint": "Above the line it came in, below it went out.",
+  "movementTitle": "Recurring revenue movement",
+  "netNew": "Net new MRR this month",
+  "netNewHint": "{{count}} new clients, {{churned}} lost",
+  "new": "New",
+  "nrr": "Net revenue retention",
+  "nrrHint": "Last year's clients pay this share of what they did, growth included. Above 100% grows without new sales.",
+  "reactivation": "Reactivation",
+  "reports": "Reports",
+  "revenueKept": "Revenue kept",
+  "signed": "Signed"
+}

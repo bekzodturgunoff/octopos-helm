@@ -37,11 +37,11 @@ export let Route = createFileRoute("/_auth/")({
   component: Overview,
 });
 
-function greeting() {
+function greetingKey() {
   let hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
+  if (hour < 12) return "common:greetingMorning";
+  if (hour < 18) return "common:greetingAfternoon";
+  return "common:greetingEvening";
 }
 
 function Overview() {
@@ -50,7 +50,7 @@ function Overview() {
   return (
     <div className="flex flex-col gap-10 px-4">
       <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-semibold tracking-tight">{t("common:greeting", {defaultValue: `${greeting()}, {{name}}`, name: user.firstName})}</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">{t(greetingKey(), {defaultValue: "Hello, {{name}}", name: user.firstName})}</h1>
         <p className="text-on-surface-secondary text-sm">{t("common:overviewHint", {defaultValue: "Who pays, who is about to, and what is broken — across every client."})}</p>
       </div>
       <Suspense fallback={<MetricsSkeleton />}>
