@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@import "../node_modules/@yeahuz/kdsx-tailwind/dist/index.css";
+@source "../node_modules/@yeahuz/kdsx-react/dist";
+
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-display: swap;
+  src: url(/fonts/Inter.var.woff2) format("woff2-variations");
+  font-weight: 1 1000;
+}
+
+html,
+body {
+  touch-action: manipulation;
+}
+
+/* As in the dash: the button's own press is the feedback on touch screens. */
+.btn {
+  -webkit-tap-highlight-color: transparent;
+}

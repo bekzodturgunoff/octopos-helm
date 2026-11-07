@@ -1,0 +1,4615 @@
+# Octopos Helm — operator API contract.
+# Mirrors src/api/types.ts and src/api/sdk.ts field for field; operationIds are the names the
+# frontend already calls (hey-api will generate identical function names into @yeahuz/kdsx-api).
+# Generated, but meant to be edited by hand from here on.
+openapi: "3.0.0"
+info:
+  version: "0.1.0"
+  title: OCTOPOS Operator API (Helm)
+  description: "The cross-tenant API behind Octopos Helm. RPC-style paths like the rest of kdsx-api: GET for reads with query parameters, POST for writes with a JSON body. Every operation except signIn requires `Authorization: Bearer <sessionID>`. x-capability names the permission the server must check; the UI only hides what this would refuse."
+security:
+  - OperatorSession: []
+tags:
+  - name: OperatorAuth
+  - name: OperatorMetrics
+  - name: OperatorClients
+  - name: OperatorBilling
+  - name: Fleet
+  - name: OperatorTasks
+  - name: OperatorAudit
+  - name: OperatorAnnouncements
+  - name: OperatorTeam
+  - name: OperatorAccess
+  - name: OperatorViews
+  - name: OperatorNotifications
+paths:
+  /operator.auth.signIn:
+    post:
+      operationId: signInOperator
+      tags: [OperatorAuth]
+      summary: Sign an operator in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignInData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignInResult"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security: []
+  /operator.auth.signOut:
+    post:
+      operationId: signOutOperator
+      tags: [OperatorAuth]
+      summary: End the current session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /operator.auth.verifyTwoFactor:
+    post:
+      operationId: verifyTwoFactor
+      tags: [OperatorAuth]
+      summary: Finish a sign-in that needed a code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyTwoFactorData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignInResult"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      security: []
+  /operator.auth.twoFactor.setup:
+    post:
+      operationId: setupTwoFactor
+      tags: [OperatorAuth]
+      summary: Start two-factor set-up
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TwoFactorSetup"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /operator.auth.twoFactor.enable:
+    post:
+      operationId: enableTwoFactor
+      tags: [OperatorAuth]
+      summary: Confirm with a first code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TwoFactorEnabled"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /operator.auth.twoFactor.disable:
+    post:
+      operationId: disableTwoFactor
+      tags: [OperatorAuth]
+      summary: Turn two-factor off
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [disabled]
+                properties:
+                  disabled:
+                    type: boolean
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      description: "422 REQUIRED while the team requires it."
+  /operator.auth.stepUp:
+    post:
+      operationId: stepUp
+      tags: [OperatorAuth]
+      summary: Prove presence before a risky action
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StepUpData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StepUpResult"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      description: "Risky operations answer 428 STEP_UP_REQUIRED without a valid X-Step-Up header: clients.suspend, subscriptions.cancel, invoices.void, fleet.retireNode, roles.delete, team.update, security.update, clients.impersonate (mode=full)."
+  /operator.security.get:
+    get:
+      operationId: getSecuritySettings
+      tags: [OperatorAuth]
+      summary: Team security settings
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecuritySettings"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: team.read
+  /operator.security.update:
+    post:
+      operationId: updateSecuritySettings
+      tags: [OperatorAuth]
+      summary: Change team security (needs X-Step-Up)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SecuritySettings"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecuritySettings"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: team.write
+  /operator.auth.me:
+    get:
+      operationId: getSignedInOperator
+      tags: [OperatorAuth]
+      summary: The signed-in operator with permissions
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignedInOperator"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /operator.metrics.overview:
+    get:
+      operationId: getOverviewMetrics
+      tags: [OperatorMetrics]
+      summary: Headline numbers for the overview
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OverviewMetrics"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.read
+  /operator.attention:
+    get:
+      operationId: getAttention
+      tags: [OperatorMetrics]
+      summary: "What needs somebody, most urgent first"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AttentionItem"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.read
+      description: "Server-side rules so every operator sees the same list: open invoices past due, card charges failed in the last 3 days, trials ending within 3 days, installations whose supervisor answers but spoke does not, clients whose activity score fell below 45."
+  /operator.clients.list:
+    get:
+      operationId: listClients
+      tags: [OperatorClients]
+      summary: Search and filter clients
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientPage"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.read
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Name, slug, owner name or phone"
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ClientStatus"
+        - name: subscriptionStatus
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/SubscriptionStatus"
+        - name: plan
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Plan slug
+        - name: health
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/HealthGrade"
+        - name: accountManagerID
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: onboarding
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Only clients with onboarding steps left
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [name, health, mrr, renewal, createdAt]
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+  /operator.clients.get:
+    get:
+      operationId: getClient
+      tags: [OperatorClients]
+      summary: One client in full
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientDetail"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.read
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /operator.clients.create:
+    post:
+      operationId: createClient
+      tags: [OperatorClients]
+      summary: Create a tenant with its owner and subscription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClientData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientDetail"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.write
+      description: "409 SLUG_TAKEN when the subdomain is in use."
+  /operator.clients.update:
+    post:
+      operationId: updateClient
+      tags: [OperatorClients]
+      summary: Edit client details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateClientData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientDetail"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.write
+  /operator.clients.suspend:
+    post:
+      operationId: suspendClient
+      tags: [OperatorClients]
+      summary: Suspend access
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdReasonData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientDetail"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.write
+      description: Dash shows a payment notice and online ordering stops. Tills keep selling offline.
+  /operator.clients.reactivate:
+    post:
+      operationId: reactivateClient
+      tags: [OperatorClients]
+      summary: Restore access
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientDetail"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.write
+  /operator.clients.impersonate:
+    post:
+      operationId: impersonateClient
+      tags: [OperatorClients]
+      summary: "Start a time-boxed support session in the client's dash"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImpersonateData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImpersonationResult"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.impersonate
+      description: "One active session per operator (a new one ends the last). mode=full needs X-Step-Up (428 otherwise). Logged, and shown to the client as a banner with the reason."
+  /operator.supportSessions.list:
+    get:
+      operationId: listSupportSessions
+      tags: [OperatorClients]
+      summary: Support sessions
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sessions]
+                properties:
+                  sessions:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SupportSession"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.impersonate
+      parameters:
+        - name: clientID
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: operatorID
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: active
+          in: query
+          required: false
+          schema:
+            type: boolean
+  /operator.supportSessions.end:
+    post:
+      operationId: endSupportSession
+      tags: [OperatorClients]
+      summary: End a session now
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportSession"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.impersonate
+  /operator.clients.onboarding.update:
+    post:
+      operationId: updateOnboardingStep
+      tags: [OperatorClients]
+      summary: Tick or untick a manual onboarding step
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOnboardingData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientOnboarding"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.write
+      description: "422 STEP_AUTOMATIC for firstSale/firstPayment. Completing every step moves an onboarding client to active."
+  /operator.remoteAccess.create:
+    post:
+      operationId: createRemoteAccess
+      tags: [OperatorClients]
+      summary: "Save an AnyDesk ID for one of the client's machines"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RemoteAccessData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemoteAccess"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.write
+      description: "422 ANYDESK_ID_INVALID; 409 ANYDESK_ID_EXISTS."
+  /operator.remoteAccess.update:
+    post:
+      operationId: updateRemoteAccess
+      tags: [OperatorClients]
+      summary: Edit a saved AnyDesk entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRemoteAccessData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemoteAccess"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.write
+  /operator.remoteAccess.delete:
+    post:
+      operationId: deleteRemoteAccess
+      tags: [OperatorClients]
+      summary: Remove a saved AnyDesk entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdData"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.write
+  /operator.remoteAccess.logConnection:
+    post:
+      operationId: logRemoteConnection
+      tags: [OperatorClients]
+      summary: Record that the caller connected with AnyDesk
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RemoteAccess"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.read
+      description: "Called as Helm opens the anydesk: link; writes lastConnectedAt/By and an activity entry."
+  /operator.clients.bulkUpdate:
+    post:
+      operationId: bulkUpdateClients
+      tags: [OperatorClients]
+      summary: Assign a manager or change tags on many clients
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkUpdateClientsData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkResult"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.write
+      description: "Clients outside the caller's scope are skipped, not failed."
+  /operator.notes.list:
+    get:
+      operationId: listClientNotes
+      tags: [OperatorClients]
+      summary: "Notes on a client, pinned first"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [notes]
+                properties:
+                  notes:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Note"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.read
+      parameters:
+        - name: clientID
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /operator.notes.create:
+    post:
+      operationId: createClientNote
+      tags: [OperatorClients]
+      summary: Add a note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNoteData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Note"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.read
+  /operator.notes.delete:
+    post:
+      operationId: deleteClientNote
+      tags: [OperatorClients]
+      summary: "Delete one's own note"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdData"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.read
+  /operator.subscriptions.changePlan:
+    post:
+      operationId: changeSubscriptionPlan
+      tags: [OperatorBilling]
+      summary: Change plan now (prorated) or at period end
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePlanData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientDetail"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.write
+  /operator.subscriptions.extend:
+    post:
+      operationId: extendSubscription
+      tags: [OperatorBilling]
+      summary: Move the period end without an invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExtendSubscriptionData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientDetail"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.write
+      description: "Any whole number of days, 1–365. Counted from the later of the current period end and now, so a past-due client gets the days from today. 422 DAYS_INVALID / REASON_REQUIRED."
+  /operator.subscriptions.cancel:
+    post:
+      operationId: cancelSubscription
+      tags: [OperatorBilling]
+      summary: Cancel now or at period end
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelSubscriptionData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientDetail"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.write
+  /operator.plans.list:
+    get:
+      operationId: listPlans
+      tags: [OperatorBilling]
+      summary: Plans with counts and MRR
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [plans]
+                properties:
+                  plans:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Plan"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.read
+  /operator.billing.renewals:
+    get:
+      operationId: listRenewals
+      tags: [OperatorBilling]
+      summary: Subscriptions whose period ends in a window
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [renewals]
+                properties:
+                  renewals:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Renewal"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.read
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+  /operator.billing.overdue:
+    get:
+      operationId: listOverdueAccounts
+      tags: [OperatorBilling]
+      summary: "Open invoices past due, oldest first"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accounts]
+                properties:
+                  accounts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OverdueAccount"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.read
+  /operator.billing.sendReminder:
+    post:
+      operationId: sendPaymentReminder
+      tags: [OperatorBilling]
+      summary: Send a payment reminder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendReminderData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sentAt]
+                properties:
+                  sentAt:
+                    type: string
+                    format: date-time
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.write
+      description: "{{link}} in the message becomes a pay link when includePayLink."
+  /operator.billing.sendReminders:
+    post:
+      operationId: bulkSendReminders
+      tags: [OperatorBilling]
+      summary: Remind many at once with the reminder template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkRemindData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkResult"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.write
+      description: Accounts with a pending promise are skipped.
+  /operator.billing.dunning.get:
+    get:
+      operationId: getDunningSettings
+      tags: [OperatorBilling]
+      summary: Payment chasing settings
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DunningSettings"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.read
+  /operator.billing.dunning.update:
+    post:
+      operationId: updateDunningSettings
+      tags: [OperatorBilling]
+      summary: Change payment chasing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DunningSettings"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DunningSettings"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.write
+      description: "The server runs the schedule: card retries (autopay), reminders, final notice, auto-suspend after graceDays, auto-reactivate on payment, no messages in quiet hours. Hard declines stop retries. 422 FINAL_AFTER_GRACE / DAYS_INVALID / CHANNEL_REQUIRED."
+  /operator.billing.promises.create:
+    post:
+      operationId: createPaymentPromise
+      tags: [OperatorBilling]
+      summary: Record a promise to pay; pauses reminders until the day
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePromiseData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentPromise"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.write
+      description: "Today to 30 days out. Passing the day unpaid marks it broken, resumes reminders and raises an attention item; payment marks it kept."
+  /operator.billing.promises.cancel:
+    post:
+      operationId: cancelPaymentPromise
+      tags: [OperatorBilling]
+      summary: Cancel a promise; reminders resume
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdData"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.write
+  /operator.invoices.paymentLink:
+    post:
+      operationId: createPaymentLink
+      tags: [OperatorBilling]
+      summary: A Click or Payme link that pays one open invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [invoiceID, vendor]
+              properties:
+                invoiceID:
+                  type: string
+                  format: uuid
+                vendor:
+                  type: string
+                  enum: [click, payme]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentLink"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.write
+  /operator.billing.winBack:
+    get:
+      operationId: listWinBack
+      tags: [OperatorBilling]
+      summary: "Clients who left recently, newest first"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [candidates]
+                properties:
+                  candidates:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WinBackCandidate"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.read
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+  /operator.billing.winBack.sendOffer:
+    post:
+      operationId: sendWinBackOffer
+      tags: [OperatorBilling]
+      summary: Send a come-back offer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendWinBackOfferData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WinBackCandidate"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.write
+  /operator.invoices.list:
+    get:
+      operationId: listInvoices
+      tags: [OperatorBilling]
+      summary: Invoices across clients
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvoicePage"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.read
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/InvoiceStatus"
+        - name: clientID
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Invoice number or client name
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+  /operator.invoices.get:
+    get:
+      operationId: getInvoice
+      tags: [OperatorBilling]
+      summary: One invoice
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.read
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /operator.invoices.void:
+    post:
+      operationId: voidInvoice
+      tags: [OperatorBilling]
+      summary: Void an open invoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VoidInvoiceData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.write
+      description: "422 INVOICE_PAID for a paid invoice."
+  /operator.payments.list:
+    get:
+      operationId: listPayments
+      tags: [OperatorBilling]
+      summary: "Payments, failed included"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentPage"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.read
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/PaymentStatus"
+        - name: vendor
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/BillingVendor"
+        - name: clientID
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+  /operator.payments.record:
+    post:
+      operationId: recordPayment
+      tags: [OperatorBilling]
+      summary: Record money received outside the providers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordPaymentData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.write
+      description: "Paying the full amount marks the invoice paid and, when nothing else is open, returns a pastDue subscription to active."
+  /operator.fleet.nodes:
+    get:
+      operationId: getOperatorFleetNodes
+      tags: [Fleet]
+      summary: EXISTS in kdsx-api — add tenantName to each node
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [nodes]
+                properties:
+                  nodes:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FleetNode"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: fleet.read
+      parameters:
+        - name: tenantID
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: false
+          schema:
+            type: string
+  /operator.fleet.retireNode:
+    post:
+      operationId: retireOperatorFleetNode
+      tags: [Fleet]
+      summary: EXISTS in kdsx-api
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FleetNodeRetireData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: fleet.write
+  /operator.fleet.setNodeTarget:
+    post:
+      operationId: setOperatorFleetNodeTarget
+      tags: [Fleet]
+      summary: "Pin a node's target version or pause its updates (cross-tenant twin of fleet.setNodeTarget)"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetFleetNodeTargetData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FleetNode"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: fleet.write
+  /operator.fleet.releases:
+    get:
+      operationId: listReleases
+      tags: [Fleet]
+      summary: Releases with adoption counts
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [releases]
+                properties:
+                  releases:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Release"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: fleet.read
+  /operator.fleet.setDefaultRelease:
+    post:
+      operationId: setDefaultRelease
+      tags: [Fleet]
+      summary: Make a stable release the default target
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [version]
+              properties:
+                version:
+                  type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Release"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: fleet.write
+  /operator.tasks.list:
+    get:
+      operationId: listTasks
+      tags: [OperatorTasks]
+      summary: Open tasks soonest due first (high priority first on the same day); done tasks most recently completed first
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tasks]
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Task"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/TaskStatus"
+        - name: assigneeID
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: unassigned
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: "true: only tasks with no assignee"
+        - name: clientID
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: priority
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/TaskPriority"
+        - name: kind
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/TaskKind"
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Title, description or client name"
+  /operator.tasks.counts:
+    get:
+      operationId: getTaskCounts
+      tags: [OperatorTasks]
+      summary: Numbers for the Tasks tabs and the header badge
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskCounts"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /operator.views.list:
+    get:
+      operationId: listSavedViews
+      tags: [OperatorViews]
+      summary: "The caller's views and the team's shared ones"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [views]
+                properties:
+                  views:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SavedView"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /operator.views.create:
+    post:
+      operationId: createSavedView
+      tags: [OperatorViews]
+      summary: Save a filtered list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSavedViewData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedView"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /operator.views.update:
+    post:
+      operationId: updateSavedView
+      tags: [OperatorViews]
+      summary: Rename or pin (owner only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                pinned:
+                  type: boolean
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SavedView"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /operator.views.delete:
+    post:
+      operationId: deleteSavedView
+      tags: [OperatorViews]
+      summary: Delete (owner only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdData"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /operator.tasks.bulkCreate:
+    post:
+      operationId: bulkCreateTasks
+      tags: [OperatorTasks]
+      summary: One task per client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkCreateTasksData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BulkResult"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: task.write
+  /operator.tasks.create:
+    post:
+      operationId: createTask
+      tags: [OperatorTasks]
+      summary: Create a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: task.write
+  /operator.tasks.update:
+    post:
+      operationId: updateTask
+      tags: [OperatorTasks]
+      summary: "Edit, complete, reopen, reassign or reschedule"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      description: Setting status to done stamps completedAt and completedBy (the caller); reopening clears both.
+  /operator.activity.list:
+    get:
+      operationId: listActivity
+      tags: [OperatorAudit]
+      summary: "Append-only activity log, newest first"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityPage"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: audit.read
+      parameters:
+        - name: clientID
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: actorID
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: category
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ActivityCategory"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+  /operator.activity.verify:
+    get:
+      operationId: verifyActivity
+      tags: [OperatorAudit]
+      summary: Recompute the hash chain
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActivityIntegrity"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: audit.read
+      description: Store the log apart from the main database with no update/delete path; this proves nothing was edited.
+  /operator.notifications.team.get:
+    get:
+      operationId: getTeamNotifications
+      tags: [OperatorNotifications]
+      summary: Team Telegram alerts
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamNotificationSettings"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: team.read
+  /operator.notifications.team.update:
+    post:
+      operationId: updateTeamNotifications
+      tags: [OperatorNotifications]
+      summary: Change team alerts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamNotificationSettings"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamNotificationSettings"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: team.write
+  /operator.notifications.test:
+    post:
+      operationId: sendTestNotification
+      tags: [OperatorNotifications]
+      summary: Send a test to the team group or to me
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target]
+              properties:
+                target:
+                  type: string
+                  enum: [team, me]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sentAt]
+                properties:
+                  sentAt:
+                    type: string
+                    format: date-time
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /operator.notifications.me.get:
+    get:
+      operationId: getMyNotifications
+      tags: [OperatorNotifications]
+      summary: "The caller's digest settings"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyNotificationSettings"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /operator.notifications.me.update:
+    post:
+      operationId: updateMyNotifications
+      tags: [OperatorNotifications]
+      summary: "Change the caller's digest"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MyNotificationSettings"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MyNotificationSettings"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /operator.notifications.me.preview:
+    get:
+      operationId: getDigestPreview
+      tags: [OperatorNotifications]
+      summary: "Today's digest text for the caller"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [text]
+                properties:
+                  text:
+                    type: string
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /operator.metrics.revenueMovement:
+    get:
+      operationId: getRevenueMovement
+      tags: [OperatorMetrics]
+      summary: MRR movement by month
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RevenueMovement"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.read
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 3
+            maximum: 24
+  /operator.metrics.cohorts:
+    get:
+      operationId: listCohorts
+      tags: [OperatorMetrics]
+      summary: Retention by signing month
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [cohorts]
+                properties:
+                  cohorts:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Cohort"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: billing.read
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 3
+            maximum: 18
+  /operator.health.settings.get:
+    get:
+      operationId: getHealthSettings
+      tags: [OperatorClients]
+      summary: Health score weights and grades
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthSettings"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.read
+  /operator.health.preview:
+    post:
+      operationId: previewHealthSettings
+      tags: [OperatorClients]
+      summary: What these settings would change
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HealthSettings"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthPreview"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.read
+  /operator.health.settings.update:
+    post:
+      operationId: updateHealthSettings
+      tags: [OperatorClients]
+      summary: Apply new weights to every client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HealthSettings"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthSettings"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: team.write
+      description: "422 WEIGHTS_INVALID (must sum to 100) / THRESHOLDS_INVALID."
+  /operator.announcements.list:
+    get:
+      operationId: listAnnouncements
+      tags: [OperatorAnnouncements]
+      summary: All announcements
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [announcements]
+                properties:
+                  announcements:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Announcement"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: announcement.write
+  /operator.announcements.create:
+    post:
+      operationId: createAnnouncement
+      tags: [OperatorAnnouncements]
+      summary: Publish or schedule a banner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAnnouncementData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: announcement.write
+  /operator.announcements.end:
+    post:
+      operationId: endAnnouncement
+      tags: [OperatorAnnouncements]
+      summary: Take a banner down now
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: announcement.write
+  /operator.team.list:
+    get:
+      operationId: listOperators
+      tags: [OperatorTeam]
+      summary: Everyone with Helm access
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [operators]
+                properties:
+                  operators:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Operator"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: team.read
+  /operator.team.invite:
+    post:
+      operationId: inviteOperator
+      tags: [OperatorTeam]
+      summary: Invite by email
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteOperatorData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Operator"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: team.write
+      description: "409 OPERATOR_EXISTS for a duplicate email."
+  /operator.access.resources:
+    get:
+      operationId: listAccessResources
+      tags: [OperatorAccess]
+      summary: "The permission catalog, grouped, with the scopes each capability allows"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [resources]
+                properties:
+                  resources:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AccessResource"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: role.read
+  /operator.roles.list:
+    get:
+      operationId: listRoles
+      tags: [OperatorAccess]
+      summary: All roles with member counts
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [roles]
+                properties:
+                  roles:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Role"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: role.read
+  /operator.roles.get:
+    get:
+      operationId: getRole
+      tags: [OperatorAccess]
+      summary: One role
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: role.read
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+  /operator.roles.create:
+    post:
+      operationId: createRole
+      tags: [OperatorAccess]
+      summary: Create a role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRoleData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: role.write
+      description: "409 ROLE_EXISTS for a duplicate name; 422 UNKNOWN_CAPABILITY / INVALID_SCOPE / PERMISSIONS_REQUIRED."
+  /operator.roles.update:
+    post:
+      operationId: updateRole
+      tags: [OperatorAccess]
+      summary: "Rename, describe or change permissions"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateRoleData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: role.write
+      description: "422 ROLE_INTERNAL when changing the Owner role's permissions. Takes effect on members' next request."
+  /operator.roles.delete:
+    post:
+      operationId: deleteRole
+      tags: [OperatorAccess]
+      summary: Delete an unused role
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdData"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: role.write
+      description: "422 ROLE_INTERNAL for Owner; 409 ROLE_IN_USE while anyone holds it."
+  /operator.team.update:
+    post:
+      operationId: updateOperator
+      tags: [OperatorTeam]
+      summary: Change role or disable
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOperatorData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Operator"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: team.write
+      description: "422 LAST_OWNER when it would leave no active operator holding the Owner role; 422 ROLE_NOT_FOUND."
+components:
+  securitySchemes:
+    OperatorSession:
+      type: http
+      scheme: bearer
+      description: A session from operator.auth.signIn. The existing static OperatorToken can be accepted on the same header during migration.
+    StepUp:
+      type: apiKey
+      in: header
+      name: X-Step-Up
+      description: "From operator.auth.stepUp, 5 minutes. Required on the risky operations listed there; they answer 428 without it."
+  schemas:
+    Error:
+      type: object
+      description: "Same body as kdsx-api's default Error response."
+      required: [message, status, code, traceID]
+      properties:
+        message:
+          type: string
+        status:
+          type: integer
+        code:
+          type: string
+        traceID:
+          type: string
+    Money:
+      type: object
+      required: [amount, majorAmount, currency, display]
+      properties:
+        amount:
+          type: integer
+          description: Minor units.
+        majorAmount:
+          type: number
+        currency:
+          type: string
+        display:
+          type: string
+          description: "Formatted by the server, e.g. \"590 000 so'm\"."
+    PermissionScope:
+      type: string
+      enum: [all, assigned]
+      description: "assigned = only clients whose accountManager is the operator. The server must filter every client and billing list, and refuse single reads/writes outside it."
+    Permission:
+      type: object
+      required: [capability]
+      properties:
+        capability:
+          oneOf:
+            - $ref: "#/components/schemas/Capability"
+            - type: string
+              enum: ["*"]
+        scope:
+          $ref: "#/components/schemas/PermissionScope"
+    RoleRef:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    Role:
+      type: object
+      required: [id, name, description, internal, permissions, memberCount, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        internal:
+          type: boolean
+          description: "Built-in Owner role: not deletable, permissions not editable."
+        permissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Permission"
+        memberCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    CreateRoleData:
+      type: object
+      required: [name, permissions]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        permissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Permission"
+          minItems: 1
+    UpdateRoleData:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        permissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Permission"
+          minItems: 1
+    AccessCapability:
+      type: object
+      required: [value, name, scopes]
+      properties:
+        value:
+          $ref: "#/components/schemas/Capability"
+        name:
+          type: string
+        description:
+          type: string
+        scopes:
+          type: array
+          items:
+            $ref: "#/components/schemas/PermissionScope"
+    AccessResource:
+      type: object
+      required: [code, name, capabilities]
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        capabilities:
+          type: array
+          items:
+            $ref: "#/components/schemas/AccessCapability"
+    OperatorStatus:
+      type: string
+      enum: [active, invited, disabled]
+    Capability:
+      type: string
+      enum:
+        - client.read
+        - client.write
+        - client.impersonate
+        - billing.read
+        - billing.write
+        - fleet.read
+        - fleet.write
+        - task.write
+        - announcement.write
+        - team.read
+        - team.write
+        - role.read
+        - role.write
+        - audit.read
+    OperatorRef:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    Operator:
+      type: object
+      required: [id, firstName, lastName, email, role, status, twoFactorEnabled, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/RoleRef"
+        status:
+          $ref: "#/components/schemas/OperatorStatus"
+        twoFactorEnabled:
+          type: boolean
+        lastSeenAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    SignedInOperator:
+      allOf:
+        - $ref: "#/components/schemas/Operator"
+        - type: object
+          required: [mustSetUpTwoFactor, permissions]
+          properties:
+            mustSetUpTwoFactor:
+              type: boolean
+              description: "Team requires two-factor and this operator has none: the UI allows only the set-up page."
+            permissions:
+              type: object
+              description: "Capability → its scope (\"all\" | \"assigned\"), or true for a capability without scopes. \"*\": true grants everything, as in SignedInUser. Derived from the operator's role."
+              additionalProperties:
+                oneOf:
+                  - type: boolean
+                  - $ref: "#/components/schemas/PermissionScope"
+    SignInData:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    SignInResult:
+      oneOf:
+        - type: object
+          required: [sessionID, operator]
+          properties:
+            sessionID:
+              type: string
+              description: "Sent back as Authorization: Bearer <sessionID>."
+            operator:
+              $ref: "#/components/schemas/SignedInOperator"
+            twoFactorRequired:
+              type: boolean
+              enum: [false]
+        - type: object
+          required: [twoFactorRequired, challengeID]
+          properties:
+            twoFactorRequired:
+              type: boolean
+              enum: [true]
+            challengeID:
+              type: string
+              description: Valid 5 minutes; pass to operator.auth.verifyTwoFactor.
+    VerifyTwoFactorData:
+      type: object
+      required: [challengeID, code]
+      properties:
+        challengeID:
+          type: string
+        code:
+          type: string
+          pattern: "^\\d{6}$|^[a-z0-9]{4}-[a-z0-9]{4}$"
+          description: "6-digit TOTP or a one-time recovery code."
+    TwoFactorSetup:
+      type: object
+      required: [secret, otpauthURL]
+      properties:
+        secret:
+          type: string
+          description: "Base32 TOTP secret, SHA-1, 6 digits, 30 s."
+        otpauthURL:
+          type: string
+    TwoFactorEnabled:
+      type: object
+      required: [recoveryCodes]
+      properties:
+        recoveryCodes:
+          type: array
+          items:
+            type: string
+    StepUpData:
+      type: object
+      description: "code for operators with two-factor, password otherwise."
+      properties:
+        code:
+          type: string
+        password:
+          type: string
+    StepUpResult:
+      type: object
+      required: [token, expiresAt]
+      properties:
+        token:
+          type: string
+          description: "Send as X-Step-Up on the risky call. Valid 5 minutes, this operator only."
+        expiresAt:
+          type: string
+          format: date-time
+    SecuritySettings:
+      type: object
+      required: [requireTwoFactor, idleTimeoutHours]
+      properties:
+        requireTwoFactor:
+          type: boolean
+        idleTimeoutHours:
+          type: integer
+          minimum: 1
+          maximum: 72
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          $ref: "#/components/schemas/OperatorRef"
+    BillingCycle:
+      type: string
+      enum: [monthly, yearly]
+    BillingVendor:
+      type: string
+      enum: [none, creem, octo, payme, click, dodo]
+    PlanRef:
+      type: object
+      required: [id, slug, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        name:
+          type: string
+    PlanPrice:
+      type: object
+      required: [id, billingCycle, value]
+      properties:
+        id:
+          type: string
+          format: uuid
+        billingCycle:
+          $ref: "#/components/schemas/BillingCycle"
+        value:
+          $ref: "#/components/schemas/Money"
+    PlanFeature:
+      type: object
+      required: [key, type]
+      properties:
+        key:
+          type: string
+          description: "billing/plan FeatureKey name, e.g. PointOfSale."
+        type:
+          type: string
+          enum: [toggle, limit]
+        limit:
+          type: integer
+    Plan:
+      type: object
+      required: [id, slug, name, position, prices, features, clientCount, mrr]
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        name:
+          type: string
+        position:
+          type: integer
+        prices:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlanPrice"
+        features:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlanFeature"
+        clientCount:
+          type: integer
+        mrr:
+          $ref: "#/components/schemas/Money"
+    SubscriptionStatus:
+      type: string
+      enum: [pending, active, canceled, scheduledCancel, pastDue, expired, trialing]
+    ClientStatus:
+      type: string
+      enum: [onboarding, active, suspended, churned]
+    HealthGrade:
+      type: string
+      enum: [good, watch, atRisk]
+    BusinessType:
+      type: string
+      enum: [restaurant, cafe, fastFood, bar, bakery, retail, other]
+    ClientHealth:
+      type: object
+      description: "Computed server-side. Suggested weights: payment 40%, activity 35%, fleet 25%. grade: good ≥ 70, watch ≥ 45, else atRisk."
+      required: [score, grade, payment, fleet, activity]
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+        grade:
+          $ref: "#/components/schemas/HealthGrade"
+        payment:
+          type: integer
+          minimum: 0
+          maximum: 100
+        fleet:
+          type: integer
+          minimum: 0
+          maximum: 100
+        activity:
+          type: integer
+          minimum: 0
+          maximum: 100
+    ClientSubscription:
+      type: object
+      required: [id, status, plan, billingCycle, vendor, nativeBilling, amount, periodStart, periodEnd]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/SubscriptionStatus"
+        plan:
+          $ref: "#/components/schemas/PlanRef"
+        billingCycle:
+          $ref: "#/components/schemas/BillingCycle"
+        vendor:
+          $ref: "#/components/schemas/BillingVendor"
+        nativeBilling:
+          type: boolean
+          description: The provider charges a saved card itself.
+        amount:
+          $ref: "#/components/schemas/Money"
+        periodStart:
+          type: string
+          format: date-time
+        periodEnd:
+          type: string
+          format: date-time
+        trialEndsAt:
+          type: string
+          format: date-time
+        canceledAt:
+          type: string
+          format: date-time
+        pendingPlan:
+          $ref: "#/components/schemas/PlanRef"
+    ClientInstallations:
+      type: object
+      required: [total, healthy, degraded, failing, offline]
+      properties:
+        total:
+          type: integer
+        healthy:
+          type: integer
+        degraded:
+          type: integer
+        failing:
+          type: integer
+          description: "Supervisor answers, spoke does not (crashLooping/misconfigured/neverStarted)."
+        offline:
+          type: integer
+    ClientContact:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        telegram:
+          type: string
+        role:
+          type: string
+    Client:
+      type: object
+      required:
+        - id
+        - name
+        - slug
+        - businessType
+        - status
+        - owner
+        - balanceDue
+        - mrr
+        - health
+        - installations
+        - locationsCount
+        - usersCount
+        - tags
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+          description: Dash subdomain.
+        businessType:
+          $ref: "#/components/schemas/BusinessType"
+        status:
+          $ref: "#/components/schemas/ClientStatus"
+        city:
+          type: string
+        owner:
+          $ref: "#/components/schemas/ClientContact"
+        subscription:
+          $ref: "#/components/schemas/ClientSubscription"
+        balanceDue:
+          $ref: "#/components/schemas/Money"
+        mrr:
+          $ref: "#/components/schemas/Money"
+        health:
+          $ref: "#/components/schemas/ClientHealth"
+        installations:
+          $ref: "#/components/schemas/ClientInstallations"
+        locationsCount:
+          type: integer
+        usersCount:
+          type: integer
+        accountManager:
+          $ref: "#/components/schemas/OperatorRef"
+        tags:
+          type: array
+          items:
+            type: string
+        onboarding:
+          $ref: "#/components/schemas/OnboardingSummary"
+        lastActiveAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    RemoteAccess:
+      type: object
+      required: [id, label, anydeskID, unattended, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+        anydeskID:
+          type: string
+          pattern: "^\\d{9,10}$"
+        locationID:
+          type: string
+          format: uuid
+        locationName:
+          type: string
+        nodeID:
+          type: string
+          format: uuid
+        unattended:
+          type: boolean
+        passwordNote:
+          type: string
+          description: Where the team keeps the password. The password itself is never stored.
+        note:
+          type: string
+        lastConnectedAt:
+          type: string
+          format: date-time
+        lastConnectedBy:
+          $ref: "#/components/schemas/OperatorRef"
+        createdAt:
+          type: string
+          format: date-time
+    RemoteAccessData:
+      type: object
+      required: [clientID, label, anydeskID, unattended]
+      properties:
+        clientID:
+          type: string
+          format: uuid
+        label:
+          type: string
+          minLength: 1
+        anydeskID:
+          type: string
+          pattern: "^\\d{9,10}$"
+        locationID:
+          type: string
+          format: uuid
+        nodeID:
+          type: string
+          format: uuid
+        unattended:
+          type: boolean
+        passwordNote:
+          type: string
+        note:
+          type: string
+    UpdateRemoteAccessData:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+          minLength: 1
+        anydeskID:
+          type: string
+          pattern: "^\\d{9,10}$"
+        locationID:
+          type: string
+          format: uuid
+        nodeID:
+          type: string
+          format: uuid
+        unattended:
+          type: boolean
+        passwordNote:
+          type: string
+        note:
+          type: string
+    OnboardingStepKey:
+      type: string
+      enum: [signed, installBooked, installed, menuLoaded, staffAdded, trained, firstSale, firstPayment]
+    OnboardingStep:
+      type: object
+      required: [key, done, automatic]
+      properties:
+        key:
+          $ref: "#/components/schemas/OnboardingStepKey"
+        done:
+          type: boolean
+        doneAt:
+          type: string
+          format: date-time
+        doneBy:
+          $ref: "#/components/schemas/OperatorRef"
+        automatic:
+          type: boolean
+          description: "firstSale / firstPayment: ticked by the server from real orders and payments."
+    OnboardingSummary:
+      type: object
+      required: [done, total, day, stalled]
+      properties:
+        done:
+          type: integer
+        total:
+          type: integer
+        day:
+          type: integer
+          description: Days since signing.
+        stalled:
+          type: boolean
+          description: "Not installed by day 7, or installed 7+ days with no sale."
+        nextStep:
+          $ref: "#/components/schemas/OnboardingStepKey"
+    ClientOnboarding:
+      allOf:
+        - $ref: "#/components/schemas/OnboardingSummary"
+        - type: object
+          required: [steps]
+          properties:
+            steps:
+              type: array
+              items:
+                $ref: "#/components/schemas/OnboardingStep"
+            daysToFirstSale:
+              type: integer
+            completedAt:
+              type: string
+              format: date-time
+    UpdateOnboardingData:
+      type: object
+      required: [clientID, key, done]
+      properties:
+        clientID:
+          type: string
+          format: uuid
+        key:
+          $ref: "#/components/schemas/OnboardingStepKey"
+        done:
+          type: boolean
+    ClientLocation:
+      type: object
+      required: [id, name, installations]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        address:
+          type: string
+        installations:
+          type: integer
+    ClientDetail:
+      allOf:
+        - $ref: "#/components/schemas/Client"
+        - type: object
+          required: [onboardingDetail, remoteAccess, contacts, locations, lifetimeValue, ordersLast30Days, dailyOrders]
+          properties:
+            onboardingDetail:
+              $ref: "#/components/schemas/ClientOnboarding"
+            remoteAccess:
+              type: array
+              items:
+                $ref: "#/components/schemas/RemoteAccess"
+            contacts:
+              type: array
+              items:
+                $ref: "#/components/schemas/ClientContact"
+            locations:
+              type: array
+              items:
+                $ref: "#/components/schemas/ClientLocation"
+            lifetimeValue:
+              $ref: "#/components/schemas/Money"
+            ordersLast30Days:
+              type: integer
+            dailyOrders:
+              type: array
+              items:
+                type: integer
+              description: "Orders per day, last 30 days, oldest first."
+            suspendedReason:
+              type: string
+    ClientPage:
+      type: object
+      required: [items, page, pages, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Client"
+        page:
+          type: integer
+          minimum: 1
+        pages:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+    CreateClientData:
+      type: object
+      required: [name, slug, businessType, owner, planID, billingCycle, trialDays]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$"
+        businessType:
+          $ref: "#/components/schemas/BusinessType"
+        city:
+          type: string
+        owner:
+          $ref: "#/components/schemas/ClientContact"
+        planID:
+          type: string
+          format: uuid
+        billingCycle:
+          $ref: "#/components/schemas/BillingCycle"
+        trialDays:
+          type: integer
+          minimum: 0
+          maximum: 90
+        accountManagerID:
+          type: string
+          format: uuid
+    UpdateClientData:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        city:
+          type: string
+        owner:
+          $ref: "#/components/schemas/ClientContact"
+        accountManagerID:
+          type: string
+          format: uuid
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+    IdData:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+    IdReasonData:
+      type: object
+      required: [id, reason]
+      properties:
+        id:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          minLength: 1
+    SupportMode:
+      type: string
+      enum: [readOnly, full]
+    SupportSession:
+      type: object
+      required: [id, clientID, clientName, operator, mode, reason, startedAt, expiresAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        clientID:
+          type: string
+          format: uuid
+        clientName:
+          type: string
+        operator:
+          $ref: "#/components/schemas/OperatorRef"
+        mode:
+          $ref: "#/components/schemas/SupportMode"
+        reason:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+    ImpersonateData:
+      type: object
+      required: [id, reason, mode, minutes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          minLength: 1
+        mode:
+          $ref: "#/components/schemas/SupportMode"
+        minutes:
+          type: integer
+          enum: [15, 30, 60]
+    ImpersonationResult:
+      type: object
+      required: [url, expiresAt, session]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: "One-time link into the client's dash as a support session. The dash shows a 'Support is viewing' banner with the reason until it ends."
+        expiresAt:
+          type: string
+          format: date-time
+        session:
+          $ref: "#/components/schemas/SupportSession"
+    ChangePlanData:
+      type: object
+      required: [clientID, planID, billingCycle, effective]
+      properties:
+        clientID:
+          type: string
+          format: uuid
+        planID:
+          type: string
+          format: uuid
+        billingCycle:
+          $ref: "#/components/schemas/BillingCycle"
+        effective:
+          type: string
+          enum: [now, periodEnd]
+    ExtendSubscriptionData:
+      type: object
+      required: [clientID, days, reason]
+      properties:
+        clientID:
+          type: string
+          format: uuid
+        days:
+          type: integer
+          minimum: 1
+          maximum: 365
+        reason:
+          type: string
+          minLength: 1
+    CancelSubscriptionData:
+      type: object
+      required: [clientID, atPeriodEnd, reason]
+      properties:
+        clientID:
+          type: string
+          format: uuid
+        atPeriodEnd:
+          type: boolean
+        reason:
+          type: string
+          minLength: 1
+    InvoiceStatus:
+      type: string
+      enum: [draft, open, paid, void, uncollectible]
+    InvoiceSource:
+      type: string
+      enum: [subscriptionRenewal, subscriptionUpgrade, addonChange, usage]
+    InvoiceLine:
+      type: object
+      required: [description, type, quantity, unitAmount, amount]
+      properties:
+        description:
+          type: string
+        type:
+          type: string
+          enum: [plan, addon, usage]
+        quantity:
+          type: integer
+        unitAmount:
+          $ref: "#/components/schemas/Money"
+        amount:
+          $ref: "#/components/schemas/Money"
+    Invoice:
+      type: object
+      required: [id, number, clientID, clientName, status, source, vendor, total, amountDue, issuedAt, dueAt, lines]
+      properties:
+        id:
+          type: string
+          format: uuid
+        number:
+          type: string
+        clientID:
+          type: string
+          format: uuid
+        clientName:
+          type: string
+        status:
+          $ref: "#/components/schemas/InvoiceStatus"
+        source:
+          $ref: "#/components/schemas/InvoiceSource"
+        vendor:
+          $ref: "#/components/schemas/BillingVendor"
+        total:
+          $ref: "#/components/schemas/Money"
+        amountDue:
+          $ref: "#/components/schemas/Money"
+        issuedAt:
+          type: string
+          format: date-time
+        dueAt:
+          type: string
+          format: date-time
+        paidAt:
+          type: string
+          format: date-time
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/InvoiceLine"
+    InvoicePage:
+      type: object
+      required: [items, page, pages, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Invoice"
+        page:
+          type: integer
+          minimum: 1
+        pages:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+    VoidInvoiceData:
+      type: object
+      required: [id, reason]
+      properties:
+        id:
+          type: string
+          format: uuid
+        reason:
+          type: string
+          minLength: 1
+    PaymentStatus:
+      type: string
+      enum: [succeeded, pending, failed, refunded]
+    PaymentMethod:
+      type: string
+      enum: [card, bankTransfer, cash, manual]
+    Payment:
+      type: object
+      required: [id, clientID, clientName, amount, vendor, method, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        clientID:
+          type: string
+          format: uuid
+        clientName:
+          type: string
+        invoiceID:
+          type: string
+          format: uuid
+        invoiceNumber:
+          type: string
+        amount:
+          $ref: "#/components/schemas/Money"
+        vendor:
+          $ref: "#/components/schemas/BillingVendor"
+        method:
+          $ref: "#/components/schemas/PaymentMethod"
+        status:
+          $ref: "#/components/schemas/PaymentStatus"
+        failureReason:
+          type: string
+        recordedBy:
+          $ref: "#/components/schemas/OperatorRef"
+        createdAt:
+          type: string
+          format: date-time
+    PaymentPage:
+      type: object
+      required: [items, page, pages, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Payment"
+        page:
+          type: integer
+          minimum: 1
+        pages:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+    RecordPaymentData:
+      type: object
+      required: [invoiceID, amount, method, paidAt]
+      properties:
+        invoiceID:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+          description: Major units in the invoice currency.
+        method:
+          $ref: "#/components/schemas/PaymentMethod"
+        paidAt:
+          type: string
+          format: date-time
+        note:
+          type: string
+    Renewal:
+      type: object
+      required: [clientID, clientName, plan, billingCycle, vendor, nativeBilling, amount, dueAt, subscriptionStatus, lastPaymentFailed, owner]
+      properties:
+        clientID:
+          type: string
+          format: uuid
+        clientName:
+          type: string
+        plan:
+          $ref: "#/components/schemas/PlanRef"
+        billingCycle:
+          $ref: "#/components/schemas/BillingCycle"
+        vendor:
+          $ref: "#/components/schemas/BillingVendor"
+        nativeBilling:
+          type: boolean
+        amount:
+          $ref: "#/components/schemas/Money"
+        dueAt:
+          type: string
+          format: date-time
+        subscriptionStatus:
+          $ref: "#/components/schemas/SubscriptionStatus"
+        lastPaymentFailed:
+          type: boolean
+        owner:
+          $ref: "#/components/schemas/ClientContact"
+    ReminderChannel:
+      type: string
+      enum: [sms, telegram, email]
+    OverdueAccount:
+      type: object
+      required: [clientID, clientName, owner, invoice, daysOverdue, remindersSent, nextStep, nextStepAt, schedule, health]
+      properties:
+        clientID:
+          type: string
+          format: uuid
+        clientName:
+          type: string
+        owner:
+          $ref: "#/components/schemas/ClientContact"
+        plan:
+          $ref: "#/components/schemas/PlanRef"
+        invoice:
+          $ref: "#/components/schemas/Invoice"
+        daysOverdue:
+          type: integer
+        remindersSent:
+          type: integer
+        lastReminderAt:
+          type: string
+          format: date-time
+        nextStep:
+          type: string
+          enum: [remind, finalNotice, suspend, waitForPromise]
+          description: From DunningSettings. A step that was due and not sent comes first; nobody is suspended before the final notice went out.
+        nextStepAt:
+          type: string
+          format: date-time
+        schedule:
+          type: array
+          items:
+            $ref: "#/components/schemas/DunningStep"
+        promise:
+          $ref: "#/components/schemas/PaymentPromise"
+        health:
+          $ref: "#/components/schemas/ClientHealth"
+    DunningStep:
+      type: object
+      required: [kind, day, at, status]
+      properties:
+        kind:
+          type: string
+          enum: [retry, reminder, finalNotice, suspend]
+        day:
+          type: integer
+          description: Days after due.
+        at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [done, skipped, upcoming, paused]
+    DunningSettings:
+      type: object
+      required: [enabled, retryDays, reminderDays, finalNoticeDay, graceDays, autoSuspend, autoReactivate, channels, includePayLink, quietHours, templates]
+      properties:
+        enabled:
+          type: boolean
+        retryDays:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 90
+        reminderDays:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 90
+        finalNoticeDay:
+          type: integer
+        graceDays:
+          type: integer
+          description: "Suspend after this many days unpaid. Must be > finalNoticeDay."
+        autoSuspend:
+          type: boolean
+        autoReactivate:
+          type: boolean
+        channels:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReminderChannel"
+          minItems: 1
+        includePayLink:
+          type: boolean
+        quietHours:
+          type: object
+          required: [from, to]
+          properties:
+            from:
+              type: string
+              pattern: "^\\d{2}:\\d{2}$"
+            to:
+              type: string
+              pattern: "^\\d{2}:\\d{2}$"
+        templates:
+          type: object
+          description: "{{name}} {{business}} {{amount}} {{due}} {{days}} {{link}} are filled in."
+          required: [reminder, finalNotice, suspended]
+          properties:
+            reminder:
+              type: string
+            finalNotice:
+              type: string
+            suspended:
+              type: string
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          $ref: "#/components/schemas/OperatorRef"
+    PaymentPromise:
+      type: object
+      required: [id, clientID, invoiceID, promisedFor, amount, status, createdBy, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        clientID:
+          type: string
+          format: uuid
+        invoiceID:
+          type: string
+          format: uuid
+        promisedFor:
+          type: string
+          format: date-time
+        amount:
+          $ref: "#/components/schemas/Money"
+        note:
+          type: string
+        status:
+          type: string
+          enum: [pending, kept, broken]
+        createdBy:
+          $ref: "#/components/schemas/OperatorRef"
+        createdAt:
+          type: string
+          format: date-time
+    CreatePromiseData:
+      type: object
+      required: [invoiceID, promisedFor]
+      properties:
+        invoiceID:
+          type: string
+          format: uuid
+        promisedFor:
+          type: string
+          format: date-time
+        amount:
+          type: number
+        note:
+          type: string
+    PaymentLink:
+      type: object
+      required: [url, vendor, expiresAt]
+      properties:
+        url:
+          type: string
+          format: uri
+        vendor:
+          type: string
+          enum: [click, payme]
+        expiresAt:
+          type: string
+          format: date-time
+    WinBackCandidate:
+      type: object
+      required: [clientID, clientName, owner, churnedAt, monthsActive, lifetimeValue]
+      properties:
+        clientID:
+          type: string
+          format: uuid
+        clientName:
+          type: string
+        owner:
+          $ref: "#/components/schemas/ClientContact"
+        lastPlan:
+          $ref: "#/components/schemas/PlanRef"
+        lastAmount:
+          $ref: "#/components/schemas/Money"
+        churnedAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+        monthsActive:
+          type: integer
+        lifetimeValue:
+          $ref: "#/components/schemas/Money"
+        offerSentAt:
+          type: string
+          format: date-time
+        offer:
+          type: object
+          required: [discountPercent, months]
+          properties:
+            discountPercent:
+              type: integer
+            months:
+              type: integer
+    SendWinBackOfferData:
+      type: object
+      required: [clientID, discountPercent, months, channel, message]
+      properties:
+        clientID:
+          type: string
+          format: uuid
+        discountPercent:
+          type: integer
+          minimum: 0
+          maximum: 100
+        months:
+          type: integer
+          minimum: 1
+          maximum: 12
+        channel:
+          $ref: "#/components/schemas/ReminderChannel"
+        message:
+          type: string
+    BulkRemindData:
+      type: object
+      required: [items, channel, includePayLink]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required: [clientID, invoiceID]
+            properties:
+              clientID:
+                type: string
+                format: uuid
+              invoiceID:
+                type: string
+                format: uuid
+        channel:
+          $ref: "#/components/schemas/ReminderChannel"
+        includePayLink:
+          type: boolean
+    BulkUpdateClientsData:
+      type: object
+      required: [ids]
+      properties:
+        ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 200
+        accountManagerID:
+          type: string
+          format: uuid
+          nullable: true
+        addTags:
+          type: array
+          items:
+            type: string
+        removeTags:
+          type: array
+          items:
+            type: string
+    BulkCreateTasksData:
+      allOf:
+        - $ref: "#/components/schemas/CreateTaskData"
+        - type: object
+          required: [clientIDs]
+          properties:
+            clientIDs:
+              type: array
+              items:
+                type: string
+                format: uuid
+      description: "{{client}} in the title becomes each client's name; no assigneeID gives each to that client's account manager."
+    BulkResult:
+      type: object
+      required: [updated, skipped]
+      properties:
+        updated:
+          type: integer
+        skipped:
+          type: array
+          items:
+            type: object
+            required: [id, reason]
+            properties:
+              id:
+                type: string
+              reason:
+                type: string
+    SavedView:
+      type: object
+      required: [id, name, path, search, pinned, shared, owner, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        path:
+          type: string
+          enum: [/clients, /billing/invoices, /billing/payments, /fleet, /tasks]
+        search:
+          type: object
+          additionalProperties: true
+        pinned:
+          type: boolean
+        shared:
+          type: boolean
+        owner:
+          $ref: "#/components/schemas/OperatorRef"
+        createdAt:
+          type: string
+          format: date-time
+    CreateSavedViewData:
+      type: object
+      required: [name, path, search, pinned, shared]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        path:
+          type: string
+          enum: [/clients, /billing/invoices, /billing/payments, /fleet, /tasks]
+        search:
+          type: object
+          additionalProperties: true
+        pinned:
+          type: boolean
+        shared:
+          type: boolean
+    AlertEvent:
+      type: string
+      enum: [fleetCrashLooping, fleetOffline, paymentFailed, promiseBroken, clientSigned, trialEnding, clientChurned, noFirstSale]
+    TeamNotificationSettings:
+      type: object
+      required: [telegram, events, crashLoopMinutes, offlineHours, offlineKeyAccountsOnly]
+      properties:
+        telegram:
+          type: object
+          required: [connected]
+          properties:
+            chatID:
+              type: string
+            chatTitle:
+              type: string
+            connected:
+              type: boolean
+        events:
+          type: object
+          additionalProperties:
+            type: boolean
+          description: AlertEvent → on/off
+        crashLoopMinutes:
+          type: integer
+          minimum: 1
+          maximum: 120
+        offlineHours:
+          type: integer
+          minimum: 1
+          maximum: 72
+        offlineKeyAccountsOnly:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          $ref: "#/components/schemas/OperatorRef"
+    MyNotificationSettings:
+      type: object
+      required: [digest, includes]
+      properties:
+        digest:
+          type: object
+          required: [enabled, time, days]
+          properties:
+            enabled:
+              type: boolean
+            time:
+              type: string
+              pattern: "^\\d{2}:\\d{2}$"
+            days:
+              type: string
+              enum: [weekdays, everyday]
+        telegramUsername:
+          type: string
+        includes:
+          type: object
+          required: [tasks, renewals, overdue, fleet, myClientsOnly]
+          properties:
+            tasks:
+              type: boolean
+            renewals:
+              type: boolean
+            overdue:
+              type: boolean
+            fleet:
+              type: boolean
+            myClientsOnly:
+              type: boolean
+    ActivityIntegrity:
+      type: object
+      required: [verified, events, headHash, checkedAt]
+      properties:
+        verified:
+          type: boolean
+        events:
+          type: integer
+        headHash:
+          type: string
+        checkedAt:
+          type: string
+          format: date-time
+        brokenAt:
+          type: string
+    RevenueMovementMonth:
+      type: object
+      required: [month, startingMrr, newMrr, expansionMrr, reactivationMrr, contractionMrr, churnedMrr, endingMrr, newClients, churnedClients]
+      properties:
+        month:
+          type: string
+        startingMrr:
+          type: number
+        newMrr:
+          type: number
+        expansionMrr:
+          type: number
+        reactivationMrr:
+          type: number
+        contractionMrr:
+          type: number
+          description: ≤ 0
+        churnedMrr:
+          type: number
+          description: ≤ 0
+        endingMrr:
+          type: number
+        newClients:
+          type: integer
+        churnedClients:
+          type: integer
+    RevenueMovement:
+      type: object
+      required: [currency, months, nrr, grr, arpa]
+      properties:
+        currency:
+          type: string
+        months:
+          type: array
+          items:
+            $ref: "#/components/schemas/RevenueMovementMonth"
+        nrr:
+          type: number
+          description: Compounded monthly over the existing base.
+        grr:
+          type: number
+          description: As nrr without expansion/reactivation; ≤ 1.
+        arpa:
+          type: number
+    Cohort:
+      type: object
+      required: [month, clients, startingMrr, clientRetention, revenueRetention]
+      properties:
+        month:
+          type: string
+        clients:
+          type: integer
+        startingMrr:
+          type: number
+        clientRetention:
+          type: array
+          items:
+            type: number
+        revenueRetention:
+          type: array
+          items:
+            type: number
+    HealthFactor:
+      type: string
+      enum: [payment, activity, fleet]
+    HealthSettings:
+      type: object
+      required: [weights, thresholds]
+      properties:
+        weights:
+          type: object
+          description: Whole percents summing to 100.
+          required: [payment, activity, fleet]
+          properties:
+            payment:
+              type: integer
+            activity:
+              type: integer
+            fleet:
+              type: integer
+        thresholds:
+          type: object
+          required: [good, watch]
+          properties:
+            good:
+              type: integer
+            watch:
+              type: integer
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          $ref: "#/components/schemas/OperatorRef"
+    HealthPreview:
+      type: object
+      required: [distribution, changes, signals]
+      properties:
+        distribution:
+          type: object
+          required: [good, watch, atRisk]
+          properties:
+            good:
+              type: integer
+            watch:
+              type: integer
+            atRisk:
+              type: integer
+        changes:
+          type: array
+          items:
+            type: object
+            required: [clientID, clientName, from, to, score]
+            properties:
+              clientID:
+                type: string
+                format: uuid
+              clientName:
+                type: string
+              from:
+                $ref: "#/components/schemas/HealthGrade"
+              to:
+                $ref: "#/components/schemas/HealthGrade"
+              score:
+                type: integer
+        signals:
+          type: array
+          items:
+            type: object
+            required: [factor, churnedAvg, retainedAvg]
+            properties:
+              factor:
+                $ref: "#/components/schemas/HealthFactor"
+              churnedAvg:
+                type: integer
+              retainedAvg:
+                type: integer
+    SendReminderData:
+      type: object
+      required: [clientID, invoiceID, channel]
+      properties:
+        clientID:
+          type: string
+          format: uuid
+        invoiceID:
+          type: string
+          format: uuid
+        channel:
+          $ref: "#/components/schemas/ReminderChannel"
+        message:
+          type: string
+        includePayLink:
+          type: boolean
+    FleetNode:
+      allOf:
+        - $ref: "../../kdsx-api/api-specs/schemas/Fleet.yml#/FleetNode"
+        - type: object
+          required: [tenantName]
+          properties:
+            tenantName:
+              type: string
+              description: Added for the operator listing.
+      description: "kdsx-api's FleetNode (schemas/Fleet.yml) plus tenantName. Helm reads: nodeID, tenantID, runningVersion, runningCommit, os, arch, schemaVersion, startedAt, pendingUploads, behindBy, parkedOutstanding, oldestParkedAt, unresolvedConflicts, lastExchangeAt, agentVersion, childState, restartCount, lastExitCode, lastStderrTail, lastCheckinAt, updateState, lastUpdateError, targetVersion, updatePaused, supervised, lanURLs, lanName, location, retiredAt."
+    FleetNodeRetireData:
+      $ref: "../../kdsx-api/api-specs/schemas/Fleet.yml#/FleetNodeRetireData"
+    SetFleetNodeTargetData:
+      type: object
+      required: [nodeID, updatePaused]
+      properties:
+        nodeID:
+          type: string
+          format: uuid
+        targetVersion:
+          type: string
+          description: "Absent: follow the default release."
+        updatePaused:
+          type: boolean
+    Release:
+      type: object
+      required: [version, channel, releasedAt, notes, running, targeted, isDefault]
+      properties:
+        version:
+          type: string
+        channel:
+          type: string
+          enum: [stable, beta]
+        releasedAt:
+          type: string
+          format: date-time
+        notes:
+          type: string
+        running:
+          type: integer
+        targeted:
+          type: integer
+        isDefault:
+          type: boolean
+    MrrPoint:
+      type: object
+      required: [month, mrr, newMrr, churnedMrr]
+      properties:
+        month:
+          type: string
+          pattern: "^\\d{4}-\\d{2}$"
+        mrr:
+          type: number
+        newMrr:
+          type: number
+        churnedMrr:
+          type: number
+    OverviewMetrics:
+      type: object
+      required:
+        - currency
+        - mrr
+        - mrrChange
+        - activeClients
+        - newClientsThisMonth
+        - trialing
+        - pastDueCount
+        - pastDueAmount
+        - churnRate
+        - renewalsNext7Days
+        - renewalsNext7DaysAmount
+        - collectionRate
+        - medianDaysToFirstSale
+        - onboardingClients
+        - fleet
+        - mrrHistory
+        - planMix
+      properties:
+        currency:
+          type: string
+        mrr:
+          $ref: "#/components/schemas/Money"
+        mrrChange:
+          type: number
+          description: Fraction vs same day last month.
+        activeClients:
+          type: integer
+        newClientsThisMonth:
+          type: integer
+        trialing:
+          type: integer
+        pastDueCount:
+          type: integer
+        pastDueAmount:
+          $ref: "#/components/schemas/Money"
+        churnRate:
+          type: number
+          description: "Logo churn, last 30 days, fraction."
+        renewalsNext7Days:
+          type: integer
+        renewalsNext7DaysAmount:
+          $ref: "#/components/schemas/Money"
+        collectionRate:
+          type: number
+          description: "Share of last month's renewals collected without a reminder."
+        medianDaysToFirstSale:
+          type: integer
+        onboardingClients:
+          type: integer
+        fleet:
+          $ref: "#/components/schemas/ClientInstallations"
+        mrrHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/MrrPoint"
+        planMix:
+          type: array
+          items:
+            type: object
+            required: [plan, clients, mrr]
+            properties:
+              plan:
+                $ref: "#/components/schemas/PlanRef"
+              clients:
+                type: integer
+              mrr:
+                type: number
+    AttentionItem:
+      type: object
+      required: [id, kind, severity, clientID, clientName, title, detail, at]
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [pastDue, paymentFailed, trialEnding, fleetFailing, inactive, renewalDue, onboardingStalled, noFirstSale]
+        severity:
+          type: string
+          enum: [high, medium, low]
+        clientID:
+          type: string
+          format: uuid
+        clientName:
+          type: string
+        title:
+          type: string
+        detail:
+          type: string
+        at:
+          type: string
+          format: date-time
+    Note:
+      type: object
+      required: [id, clientID, body, pinned, author, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        clientID:
+          type: string
+          format: uuid
+        body:
+          type: string
+        pinned:
+          type: boolean
+        author:
+          $ref: "#/components/schemas/OperatorRef"
+        createdAt:
+          type: string
+          format: date-time
+    CreateNoteData:
+      type: object
+      required: [clientID, body]
+      properties:
+        clientID:
+          type: string
+          format: uuid
+        body:
+          type: string
+          minLength: 1
+        pinned:
+          type: boolean
+    TaskStatus:
+      type: string
+      enum: [open, done]
+    TaskPriority:
+      type: string
+      enum: [low, normal, high]
+    TaskKind:
+      type: string
+      enum: [followUp, call, payment, install, other]
+    Task:
+      type: object
+      required: [id, title, kind, priority, status, createdBy, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        kind:
+          $ref: "#/components/schemas/TaskKind"
+        priority:
+          $ref: "#/components/schemas/TaskPriority"
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        clientID:
+          type: string
+          format: uuid
+        clientName:
+          type: string
+        assignee:
+          $ref: "#/components/schemas/OperatorRef"
+        dueAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        completedBy:
+          $ref: "#/components/schemas/OperatorRef"
+        createdBy:
+          $ref: "#/components/schemas/OperatorRef"
+        createdAt:
+          type: string
+          format: date-time
+    TaskCounts:
+      type: object
+      required: [mine, everyone, unassigned, overdue, dueToday]
+      properties:
+        mine:
+          type: integer
+          description: "Open, assigned to the caller."
+        everyone:
+          type: integer
+          description: "Open, anyone."
+        unassigned:
+          type: integer
+        overdue:
+          type: integer
+          description: "Caller's open tasks due before today."
+        dueToday:
+          type: integer
+          description: "Caller's open tasks due today."
+    CreateTaskData:
+      type: object
+      required: [title, kind, priority]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        kind:
+          $ref: "#/components/schemas/TaskKind"
+        priority:
+          $ref: "#/components/schemas/TaskPriority"
+        clientID:
+          type: string
+          format: uuid
+        assigneeID:
+          type: string
+          format: uuid
+        dueAt:
+          type: string
+          format: date-time
+    UpdateTaskData:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        kind:
+          $ref: "#/components/schemas/TaskKind"
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        assigneeID:
+          type: string
+          format: uuid
+          nullable: true
+        dueAt:
+          type: string
+          format: date-time
+          nullable: true
+        priority:
+          $ref: "#/components/schemas/TaskPriority"
+    ActivityCategory:
+      type: string
+      enum: [payment, billing, support, note, fleet, client, team]
+    ActivityEvent:
+      type: object
+      required: [id, category, actor, action, summary, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        category:
+          $ref: "#/components/schemas/ActivityCategory"
+        hash:
+          type: string
+          description: "sha256(previous hash | id | action | actor | summary | createdAt). Append-only: no update or delete exists."
+        actor:
+          type: object
+          required: [kind, name]
+          properties:
+            kind:
+              type: string
+              enum: [operator, system, client]
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        action:
+          type: string
+          description: "Dotted, e.g. client.suspended, payment.failed."
+        summary:
+          type: string
+        clientID:
+          type: string
+          format: uuid
+        clientName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    ActivityPage:
+      type: object
+      required: [items, page, pages, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ActivityEvent"
+        page:
+          type: integer
+          minimum: 1
+        pages:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+    AnnouncementSeverity:
+      type: string
+      enum: [info, warning, critical]
+    AnnouncementAudience:
+      oneOf:
+        - type: object
+          required: [kind]
+          properties:
+            kind:
+              type: string
+              enum: [all]
+        - type: object
+          required: [kind, planSlugs]
+          properties:
+            kind:
+              type: string
+              enum: [plans]
+            planSlugs:
+              type: array
+              items:
+                type: string
+        - type: object
+          required: [kind, clientIDs]
+          properties:
+            kind:
+              type: string
+              enum: [clients]
+            clientIDs:
+              type: array
+              items:
+                type: string
+                format: uuid
+      discriminator:
+        propertyName: kind
+    Announcement:
+      type: object
+      description: "Shown in the clients' dash as a banner. kdsx-dash-v2 needs a matching read endpoint (e.g. announcements.current) to render it."
+      required: [id, title, body, severity, audience, status, startsAt, createdBy, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        body:
+          type: string
+        severity:
+          $ref: "#/components/schemas/AnnouncementSeverity"
+        audience:
+          $ref: "#/components/schemas/AnnouncementAudience"
+        status:
+          type: string
+          enum: [scheduled, live, ended]
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+        createdBy:
+          $ref: "#/components/schemas/OperatorRef"
+        createdAt:
+          type: string
+          format: date-time
+    CreateAnnouncementData:
+      type: object
+      required: [title, body, severity, audience, startsAt]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 80
+        body:
+          type: string
+          minLength: 1
+          maxLength: 400
+        severity:
+          $ref: "#/components/schemas/AnnouncementSeverity"
+        audience:
+          $ref: "#/components/schemas/AnnouncementAudience"
+        startsAt:
+          type: string
+          format: date-time
+        endsAt:
+          type: string
+          format: date-time
+    InviteOperatorData:
+      type: object
+      required: [email, firstName, lastName, roleID]
+      properties:
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        roleID:
+          type: string
+          format: uuid
+    UpdateOperatorData:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+          format: uuid
+        role:
+          $ref: "#/components/schemas/RoleRef"
+        status:
+          $ref: "#/components/schemas/OperatorStatus"
