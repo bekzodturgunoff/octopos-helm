@@ -153,8 +153,8 @@ function NewClient() {
             <div className="flex flex-col gap-2">
               {plans?.plans.map((plan, i) => (
                 <RadioCard key={plan.id} name="planID" value={plan.id} defaultChecked={i === 1} required>
-                  <span className="flex w-full items-center justify-between gap-4">
-                    <span className="flex flex-col">
+                  <span className="flex w-full min-w-0 items-center justify-between gap-3">
+                    <span className="flex min-w-0 flex-col">
                       <span className="font-medium">{plan.name}</span>
                       <span className="text-on-surface-secondary text-xs">
                         {plan.features
@@ -163,7 +163,7 @@ function NewClient() {
                           .join(" · ")}
                       </span>
                     </span>
-                    <span className="shrink-0 text-sm tabular-nums">{plan.prices.find((p) => p.billingCycle === "monthly")?.value.display}</span>
+                    <span className="shrink-0 text-sm whitespace-nowrap tabular-nums">{plan.prices.find((p) => p.billingCycle === "monthly")?.value.display}</span>
                   </span>
                 </RadioCard>
               ))}

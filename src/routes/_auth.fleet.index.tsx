@@ -52,8 +52,12 @@ function Fleet() {
       </PageHeader>
       <Tabs value={view} onValueChange={(value) => navigate({search: (prev) => ({...prev, view: value === "problems" ? undefined : (value as View)}), replace: true})}>
         <TabsList>
-          <TabsTrigger value="problems">{t("fleet:needsAction", {defaultValue: "Needs action"})}</TabsTrigger>
-          <TabsTrigger value="all">{t("fleet:all", {defaultValue: "All installations"})}</TabsTrigger>
+          <TabsTrigger value="problems" className="shrink-0 px-2 text-sm sm:px-4 sm:text-base">
+            {t("fleet:needsAction", {defaultValue: "Needs action"})}
+          </TabsTrigger>
+          <TabsTrigger value="all" className="shrink-0 px-2 text-sm sm:px-4 sm:text-base">
+            {t("fleet:all", {defaultValue: "All installations"})}
+          </TabsTrigger>
         </TabsList>
       </Tabs>
       <Suspense fallback={<ListSkeleton rows={10} />}>
