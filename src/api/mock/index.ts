@@ -2,6 +2,8 @@ import {ApiError, currentStepUp, type Method, type RequestOptions} from "../clie
 import {randomSecret, sha256, verifyTotp} from "./totp";
 import type * as T from "../types";
 import {getSession} from "@/constants";
+import {appLabel, formatRemoteID, remoteApp, REMOTE_APPS} from "@/lib/remote-apps";
+import {DASH_DOMAIN, SLUG_PATTERN} from "@/lib/dash";
 import {
   activity,
   announcements,
@@ -429,9 +431,12 @@ let handlers: Record<string, Handler> = {
     if (!visibleTo(me, "client.read")(String(query.id))) fail(404, "CLIENT_NOT_FOUND", "No client with that id.");
     return findClient(query.id);
   },
+  "GET /operator.clients.checkSlug": ({query}) => slugCheck(String(query.slug ?? "")),
   "POST /operator.clients.create": ({body, me}) => {
     let data = body as unknown as T.CreateClientData;
-    if (clients.some((c) => c.slug === data.slug)) fail(409, "SLUG_TAKEN", "A client with this name already exists.");
+    let check = slugCheck(data.slug);
+    if (check.reason === "taken") fail(409, "SLUG_TAKEN", `${data.slug}.${DASH_DOMAIN} is already another client's dash.`);
+    if (!check.available) fail(422, "SLUG_INVALID", "The dash address needs 3–40 Latin letters, digits or dashes.");
     let p = plans.find((pl) => pl.id === data.planID) ?? plans[0];
     let manager = operators.find((o) => o.id === data.accountManagerID);
     let client: MockClient = {
@@ -569,7 +574,7 @@ let handlers: Record<string, Handler> = {
     let client = findClient(data.clientID);
     let entry: T.RemoteAccess = {id: id("ra"), ...validRemote(client, data), createdAt: new Date().toISOString()} as T.RemoteAccess;
     client.remoteAccess.push(entry);
-    log(me, "remoteAccess.added", `Added AnyDesk ${formatAnydesk(entry.anydeskID)} (${entry.label})`, client);
+    log(me, "remoteAccess.added", `Added ${appLabel(entry)} ${formatRemoteID(entry.remoteID)} (${entry.label})`, client);
     return entry;
   },
   "POST /operator.remoteAccess.update": ({body, me}) => {
@@ -578,7 +583,7 @@ let handlers: Record<string, Handler> = {
     if (!client) fail(404, "REMOTE_ACCESS_NOT_FOUND", "No remote access entry with that id.");
     let entry = client.remoteAccess.find((r) => r.id === data.id)!;
     Object.assign(entry, validRemote(client, {...entry, ...data}));
-    log(me, "remoteAccess.updated", `Updated AnyDesk ${formatAnydesk(entry.anydeskID)} (${entry.label})`, client);
+    log(me, "remoteAccess.updated", `Updated ${appLabel(entry)} ${formatRemoteID(entry.remoteID)} (${entry.label})`, client);
     return entry;
   },
   "POST /operator.remoteAccess.delete": ({body, me}) => {
@@ -586,7 +591,7 @@ let handlers: Record<string, Handler> = {
     if (!client) fail(404, "REMOTE_ACCESS_NOT_FOUND", "No remote access entry with that id.");
     let entry = client.remoteAccess.find((r) => r.id === body.id)!;
     client.remoteAccess = client.remoteAccess.filter((r) => r.id !== body.id);
-    log(me, "remoteAccess.removed", `Removed AnyDesk ${formatAnydesk(entry.anydeskID)} (${entry.label})`, client);
+    log(me, "remoteAccess.removed", `Removed ${appLabel(entry)} ${formatRemoteID(entry.remoteID)} (${entry.label})`, client);
     return {id: entry.id};
   },
   "POST /operator.remoteAccess.logConnection": ({body, me}) => {
@@ -596,7 +601,7 @@ let handlers: Record<string, Handler> = {
     let entry = client.remoteAccess.find((r) => r.id === body.id)!;
     entry.lastConnectedAt = new Date().toISOString();
     entry.lastConnectedBy = operatorRef(operator);
-    log(me, "remoteAccess.connected", `Connected to ${entry.label} with AnyDesk`, client);
+    log(me, "remoteAccess.connected", `Connected to ${entry.label} with ${appLabel(entry)}`, client);
     return entry;
   },
 
@@ -1540,20 +1545,33 @@ function median(values: number[]) {
   return sorted[Math.floor(sorted.length / 2)];
 }
 
-function formatAnydesk(value: string) {
-  return value.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+// Subdomains the platform itself uses.
+let RESERVED_SLUGS = new Set(["www", "api", "app", "dash", "admin", "helm", "mail", "status", "help", "docs", "billing", "pay"]);
+
+function slugCheck(slug: string): T.SlugCheck {
+  if (!SLUG_PATTERN.test(slug)) return {slug, available: false, reason: "invalid"};
+  let free = (s: string) => !RESERVED_SLUGS.has(s) && !clients.some((c) => c.slug === s);
+  if (free(slug)) return {slug, available: true};
+  let n = 2;
+  while (!free(`${slug.slice(0, 37)}-${n}`)) n++;
+  return {slug, available: false, reason: RESERVED_SLUGS.has(slug) ? "reserved" : "taken", suggestion: `${slug.slice(0, 37)}-${n}`};
 }
 
 function validRemote(client: MockClient, data: Partial<T.RemoteAccessData>) {
-  let anydesk = String(data.anydeskID ?? "").replace(/\s/g, "");
-  if (!/^\d{9,10}$/.test(anydesk)) fail(422, "ANYDESK_ID_INVALID", "An AnyDesk ID is 9 or 10 digits.");
+  let app = remoteApp(data.app);
+  if (!REMOTE_APPS.some((a) => a.app === data.app)) fail(422, "REMOTE_APP_INVALID", "Pick the app: anydesk, rustdesk, teamviewer or other.");
+  let remote = String(data.remoteID ?? "").replace(/\s/g, "");
+  if (!app.pattern.test(remote)) fail(422, "REMOTE_ID_INVALID", `That does not look like a ${app.name} ID.`);
+  if (app.app === "other" && !data.appName?.trim()) fail(422, "APP_NAME_REQUIRED", "Say which app it is.");
   if (!data.label?.trim()) fail(422, "LABEL_REQUIRED", 'Name the machine, e.g. "Main hall · Till 1".');
-  let duplicate = client.remoteAccess.find((r) => r.anydeskID === anydesk && r.label !== data.label);
-  if (duplicate && !("id" in data && (data as {id?: string}).id === duplicate.id)) fail(409, "ANYDESK_ID_EXISTS", `That ID is already saved as "${duplicate.label}".`);
+  let duplicate = client.remoteAccess.find((r) => r.app === app.app && r.remoteID === remote);
+  if (duplicate && !("id" in data && (data as {id?: string}).id === duplicate.id)) fail(409, "REMOTE_ID_EXISTS", `That ID is already saved as "${duplicate.label}".`);
   let location = client.locations.find((l) => l.id === data.locationID);
   return {
     label: data.label.trim(),
-    anydeskID: anydesk,
+    app: app.app,
+    remoteID: remote,
+    appName: app.app === "other" ? data.appName?.trim() : undefined,
     locationID: location?.id,
     locationName: location?.name,
     nodeID: data.nodeID || undefined,

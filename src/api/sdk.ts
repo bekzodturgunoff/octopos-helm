@@ -77,6 +77,9 @@ export let listClients = clients.fetcher;
 let client = read<T.ClientDetail, {id: string}>("getClient", "/operator.clients.get", ["Clients"]);
 export let getClientQueryKey = client.key;
 export let getClientOptions = client.opts;
+/** Is this dash address free? Asked as the name is typed in the new-client flow. */
+let slugCheck = read<T.SlugCheck, {slug: string}>("checkClientSlug", "/operator.clients.checkSlug", ["OperatorClients"]);
+export let checkClientSlugOptions = slugCheck.opts;
 
 export let createClientMutation = write<T.ClientDetail, T.CreateClientData>("/operator.clients.create");
 export let updateClientMutation = write<T.ClientDetail, T.UpdateClientData>("/operator.clients.update");
@@ -95,11 +98,11 @@ export let deleteClientNoteMutation = write<{id: string}, {id: string}>("/operat
 
 export let updateOnboardingStepMutation = write<T.ClientOnboarding, T.UpdateOnboardingData>("/operator.clients.onboarding.update");
 
-// Remote access (AnyDesk). Entries come with the client; these change them and log connections.
+// Remote access (AnyDesk, RustDesk, TeamViewer…). Entries come with the client; these change them and log connections.
 export let createRemoteAccessMutation = write<T.RemoteAccess, T.RemoteAccessData>("/operator.remoteAccess.create");
 export let updateRemoteAccessMutation = write<T.RemoteAccess, T.UpdateRemoteAccessData>("/operator.remoteAccess.update");
 export let deleteRemoteAccessMutation = write<{id: string}, {id: string}>("/operator.remoteAccess.delete");
-/** Called as the AnyDesk link opens, so "who was on this till" has an answer. */
+/** Called as the app's link opens, so "who was on this till" has an answer. */
 export let logRemoteConnectionMutation = write<T.RemoteAccess, {id: string}>("/operator.remoteAccess.logConnection");
 
 // ---- Subscriptions ------------------------------------------------------------------------------

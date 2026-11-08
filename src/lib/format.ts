@@ -54,11 +54,6 @@ export function initials(name: string) {
     .toUpperCase();
 }
 
-/** "123456789" → "123 456 789", "1234567890" → "1 234 567 890": grouped from the right, as AnyDesk shows an ID. */
-export function formatAnydesk(value: string) {
-  return value.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-}
-
 /** "2026-11" → a local date on the 1st, so the label is the same month in every timezone. */
 export function monthDate(month: string) {
   let [year, m] = month.split("-").map(Number);

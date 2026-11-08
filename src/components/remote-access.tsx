@@ -4,14 +4,17 @@ import {useTranslation} from "react-i18next";
 import {Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Input, Select, Tag, Textarea, Tooltip} from "@yeahuz/kdsx-react";
 import {Check, Copy, Monitor, MoreHorizontal, Plug} from "lucide-react";
 import {createRemoteAccessMutation, deleteRemoteAccessMutation, logRemoteConnectionMutation, updateRemoteAccessMutation, type ClientDetail, type FleetNode, type RemoteAccess} from "@/api";
+import type {RemoteApp} from "@/api/types";
 import {FormDialog, FormField} from "@/components/form-dialog";
 import {useToast} from "@/components/toaster";
-import {formatAnydesk, formatRelative} from "@/lib/format";
+import {formatRelative} from "@/lib/format";
+import {appLabel, formatRemoteID, remoteApp, REMOTE_APPS} from "@/lib/remote-apps";
 import {fleetNodeLabel} from "@/lib/fleet";
 
 /**
- * Opens AnyDesk on this computer pointed at the client's machine, and records who connected. The
- * `anydesk:` link is AnyDesk's own; with it installed the browser hands the ID straight over.
+ * Opens the entry's app on this computer pointed at the client's machine, and records who connected.
+ * Each app has its own link scheme; with the app installed the browser hands the ID straight over.
+ * An app with no link gets its ID copied instead, to paste into the app.
  */
 export function useConnect() {
   let {t} = useTranslation();
@@ -20,11 +23,18 @@ export function useConnect() {
   let log = useMutation({...logRemoteConnectionMutation(), onSuccess: () => queryClient.invalidateQueries({predicate: (q) => (q.queryKey[0] as {_id?: string})?._id === "getClient"})});
   return (entry: RemoteAccess) => {
     log.mutate({body: {id: entry.id}});
-    window.location.href = `anydesk:${entry.anydeskID}`;
+    let link = remoteApp(entry.app).link;
+    let attended = entry.unattended ? undefined : t("clients:remoteAttended", {defaultValue: "Someone at the client has to accept the connection."});
+    if (link) {
+      window.location.href = link(entry.remoteID);
+      toast({tone: "success", title: t("clients:remoteOpening", {defaultValue: "Opening {{app}} · {{id}}", app: appLabel(entry), id: formatRemoteID(entry.remoteID)}), description: attended});
+      return;
+    }
+    navigator.clipboard?.writeText(entry.remoteID);
     toast({
       tone: "success",
-      title: t("clients:anydeskOpening", {defaultValue: "Opening AnyDesk · {{id}}", id: formatAnydesk(entry.anydeskID)}),
-      description: entry.unattended ? undefined : t("clients:anydeskAttended", {defaultValue: "Someone at the client has to accept the connection."}),
+      title: t("clients:remoteCopied", {defaultValue: "ID copied · open {{app}} and paste it", app: appLabel(entry)}),
+      description: attended,
     });
   };
 }
@@ -71,7 +81,9 @@ export function RemoteAccessList({client, writes, nodes}: {client: ClientDetail;
   if (!client.remoteAccess.length) {
     return (
       <div className="flex flex-col items-start gap-3">
-        <p className="text-on-surface-secondary text-sm">{t("clients:noRemoteAccess", {defaultValue: "No AnyDesk IDs saved yet. Add one at install so support can reach the till without a trip."})}</p>
+        <p className="text-on-surface-secondary text-sm">
+          {t("clients:noRemoteAccess", {defaultValue: "No remote access saved yet. Add the till's AnyDesk or RustDesk ID at install so support can reach it without a trip."})}
+        </p>
         {writes ? <RemoteAccessDialog client={client} nodes={nodes} /> : null}
       </div>
     );
@@ -94,9 +106,12 @@ export function RemoteAccessList({client, writes, nodes}: {client: ClientDetail;
                   <Tag color="neutral">{t("clients:needsAccept", {defaultValue: "Needs accept"})}</Tag>
                 )}
               </span>
-              <span className="flex items-center gap-1">
-                <span className="font-mono text-lg tracking-wide whitespace-nowrap tabular-nums">{formatAnydesk(entry.anydeskID)}</span>
-                <CopyButton value={entry.anydeskID} label={t("clients:copyId", {defaultValue: "Copy ID"})} />
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-on-surface-secondary text-sm">{appLabel(entry)}</span>
+                <span className="flex items-center gap-1">
+                  <span className="font-mono text-lg tracking-wide whitespace-nowrap tabular-nums">{formatRemoteID(entry.remoteID)}</span>
+                  <CopyButton value={entry.remoteID} label={t("clients:copyId", {defaultValue: "Copy ID"})} />
+                </span>
               </span>
               <span className="text-on-surface-secondary text-xs">
                 {[
@@ -157,6 +172,9 @@ export function RemoteAccessList({client, writes, nodes}: {client: ClientDetail;
 
 function RemoteAccessDialog({client, nodes, entry, onClose}: {client: ClientDetail; nodes?: FleetNode[]; entry?: RemoteAccess; onClose?: () => void}) {
   let {t} = useTranslation();
+  // The app picks how the ID is checked and what the field suggests.
+  let [app, setApp] = useState<RemoteApp>(entry?.app ?? "anydesk");
+  let info = remoteApp(app);
   let create = createRemoteAccessMutation();
   let update = updateRemoteAccessMutation();
   let get = (form: FormData, key: string) => ((form.get(key) as string | null) ?? "").trim();
@@ -165,20 +183,22 @@ function RemoteAccessDialog({client, nodes, entry, onClose}: {client: ClientDeta
       trigger={
         entry ? undefined : (
           <Button size="sm" color="neutral" className="max-w-fit">
-            {t("clients:addAnydesk", {defaultValue: "Add AnyDesk ID"})}
+            {t("clients:addRemote", {defaultValue: "Add remote access"})}
           </Button>
         )
       }
       open={entry ? true : undefined}
       onOpenChange={entry ? (open) => (open ? undefined : onClose?.()) : undefined}
-      title={entry ? t("clients:editAnydesk", {defaultValue: "Edit {{label}}", label: entry.label}) : t("clients:addAnydesk", {defaultValue: "Add AnyDesk ID"})}
-      description={t("clients:addAnydeskHint", {defaultValue: "The 9 or 10 digit ID AnyDesk shows on the machine. Do not paste the password here."})}
+      title={entry ? t("clients:editRemote", {defaultValue: "Edit {{label}}", label: entry.label}) : t("clients:addRemote", {defaultValue: "Add remote access"})}
+      description={t("clients:addRemoteHint", {defaultValue: "The ID the app shows on the machine. Do not paste the password here."})}
       action={entry ? t("common:save", {defaultValue: "Save"}) : t("common:add", {defaultValue: "Add"})}
-      success={entry ? t("clients:anydeskSaved", {defaultValue: "Saved"}) : t("clients:anydeskAdded", {defaultValue: "AnyDesk ID added"})}
+      success={entry ? t("clients:remoteSaved", {defaultValue: "Saved"}) : t("clients:remoteAdded", {defaultValue: "Remote access added"})}
       onSubmit={(form) => {
         let body = {
           label: get(form, "label"),
-          anydeskID: get(form, "anydeskID").replace(/\s/g, ""),
+          app,
+          remoteID: get(form, "remoteID").replace(/\s/g, ""),
+          appName: app === "other" ? get(form, "appName") : undefined,
           locationID: get(form, "locationID") || undefined,
           nodeID: get(form, "nodeID") || undefined,
           unattended: form.get("unattended") === "on",
@@ -188,17 +208,39 @@ function RemoteAccessDialog({client, nodes, entry, onClose}: {client: ClientDeta
         return entry ? update.mutationFn({body: {id: entry.id, ...body}}) : create.mutationFn({body: {clientID: client.id, ...body}});
       }}
     >
+      <FormField label={t("clients:remoteApp", {defaultValue: "App"})} htmlFor="app">
+        <div id="app" role="radiogroup" className="flex flex-wrap gap-2">
+          {REMOTE_APPS.map((option) => (
+            <button
+              key={option.app}
+              type="button"
+              role="radio"
+              aria-checked={app === option.app}
+              onClick={() => setApp(option.app)}
+              className={`h-9 rounded-full border px-3 text-sm transition-colors ${app === option.app ? "border-border-accent bg-surface-300" : "border-border-secondary text-on-surface-secondary"}`}
+            >
+              {option.app === "other" ? t("clients:otherApp", {defaultValue: "Other"}) : option.name}
+            </button>
+          ))}
+        </div>
+      </FormField>
+      {app === "other" ? (
+        <FormField label={t("clients:appName", {defaultValue: "Which app"})} htmlFor="appName">
+          <Input id="appName" name="appName" required placeholder="Ammyy Admin, Chrome Remote Desktop…" defaultValue={entry?.appName} />
+        </FormField>
+      ) : null}
       <div className="grid grid-cols-2 gap-3">
-        <FormField label={t("clients:anydeskId", {defaultValue: "AnyDesk ID"})} htmlFor="anydeskID">
+        <FormField label={t("clients:remoteIdLabel", {defaultValue: "{{app}} ID", app: app === "other" ? t("clients:otherApp", {defaultValue: "Other"}) : info.name})} htmlFor="remoteID">
           <Input
-            id="anydeskID"
-            name="anydeskID"
+            key={app}
+            id="remoteID"
+            name="remoteID"
             required
-            inputMode="numeric"
-            pattern="[0-9 ]{9,13}"
-            placeholder="123 456 789"
-            defaultValue={entry ? formatAnydesk(entry.anydeskID) : undefined}
-            autoFocus
+            inputMode={app === "anydesk" || app === "teamviewer" ? "numeric" : undefined}
+            pattern={app === "anydesk" || app === "teamviewer" ? "[0-9 ]{9,13}" : undefined}
+            placeholder={info.placeholder}
+            defaultValue={entry && entry.app === app ? formatRemoteID(entry.remoteID) : undefined}
+            autoFocus={!entry}
             className="font-mono"
           />
         </FormField>

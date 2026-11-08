@@ -391,6 +391,32 @@ paths:
             type: integer
             minimum: 1
             maximum: 100
+  /operator.clients.checkSlug:
+    get:
+      operationId: checkClientSlug
+      tags: [OperatorClients]
+      summary: Is this dash address free?
+      description: "Asked as the name is typed in the new-client flow. Reserved platform subdomains (www, api, app, dash, admin, helm…) count as taken. When not free, suggestion is the nearest free one (slug-2, slug-3…)."
+      parameters:
+        - name: slug
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SlugCheck"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.write
   /operator.clients.get:
     get:
       operationId: getClient
@@ -442,7 +468,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
       x-capability: client.write
-      description: "409 SLUG_TAKEN when the subdomain is in use."
+      description: "slug is the dash subdomain: <slug>.dash.octopos.uz. 409 SLUG_TAKEN when another client or the platform uses it; 422 SLUG_INVALID unless it is 3–40 lowercase letters, digits or dashes, not starting or ending with a dash."
   /operator.clients.update:
     post:
       operationId: updateClient
@@ -643,7 +669,7 @@ paths:
     post:
       operationId: createRemoteAccess
       tags: [OperatorClients]
-      summary: "Save an AnyDesk ID for one of the client's machines"
+      summary: "Save remote access (AnyDesk, RustDesk, TeamViewer or other) for one of the client's machines"
       requestBody:
         required: true
         content:
@@ -664,12 +690,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
       x-capability: client.write
-      description: "422 ANYDESK_ID_INVALID; 409 ANYDESK_ID_EXISTS."
+      description: "422 REMOTE_APP_INVALID, REMOTE_ID_INVALID (ID does not match the app's format), APP_NAME_REQUIRED (app is other), LABEL_REQUIRED; 409 REMOTE_ID_EXISTS (same app and ID already saved for this client)."
   /operator.remoteAccess.update:
     post:
       operationId: updateRemoteAccess
       tags: [OperatorClients]
-      summary: Edit a saved AnyDesk entry
+      summary: Edit a saved remote access entry
       requestBody:
         required: true
         content:
@@ -694,7 +720,7 @@ paths:
     post:
       operationId: deleteRemoteAccess
       tags: [OperatorClients]
-      summary: Remove a saved AnyDesk entry
+      summary: Remove a saved remote access entry
       requestBody:
         required: true
         content:
@@ -719,7 +745,7 @@ paths:
     post:
       operationId: logRemoteConnection
       tags: [OperatorClients]
-      summary: Record that the caller connected with AnyDesk
+      summary: Record that the caller connected to the machine
       requestBody:
         required: true
         content:
@@ -740,7 +766,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
       x-capability: client.read
-      description: "Called as Helm opens the anydesk: link; writes lastConnectedAt/By and an activity entry."
+      description: "Called as Helm opens the app's link (anydesk:, rustdesk://, teamviewer10://) or copies the ID; writes lastConnectedAt/By and an activity entry."
   /operator.clients.bulkUpdate:
     post:
       operationId: bulkUpdateClients
@@ -2353,7 +2379,7 @@ components:
           type: string
         display:
           type: string
-          description: "Formatted by the server, e.g. \"590 000 so'm\"."
+          description: 'Formatted by the server, e.g. "590 000 so''m".'
     PermissionScope:
       type: string
       enum: [all, assigned]
@@ -2524,7 +2550,7 @@ components:
               description: "Team requires two-factor and this operator has none: the UI allows only the set-up page."
             permissions:
               type: object
-              description: "Capability → its scope (\"all\" | \"assigned\"), or true for a capability without scopes. \"*\": true grants everything, as in SignedInUser. Derived from the operator's role."
+              description: 'Capability → its scope ("all" | "assigned"), or true for a capability without scopes. "*": true grants everything, as in SignedInUser. Derived from the operator''s role.'
               additionalProperties:
                 oneOf:
                   - type: boolean
@@ -2845,18 +2871,41 @@ components:
         createdAt:
           type: string
           format: date-time
+    SlugCheck:
+      type: object
+      required: [slug, available]
+      properties:
+        slug:
+          type: string
+        available:
+          type: boolean
+        reason:
+          type: string
+          enum: [taken, invalid, reserved]
+        suggestion:
+          type: string
+          description: A free address close to the one asked for.
+    RemoteApp:
+      type: string
+      enum: [anydesk, rustdesk, teamviewer, other]
     RemoteAccess:
       type: object
-      required: [id, label, anydeskID, unattended, createdAt]
+      required: [id, label, app, remoteID, unattended, createdAt]
       properties:
         id:
           type: string
           format: uuid
         label:
           type: string
-        anydeskID:
+        app:
+          $ref: "#/components/schemas/RemoteApp"
+        remoteID:
           type: string
-          pattern: "^\\d{9,10}$"
+          description: "The ID the app shows, without spaces. anydesk and teamviewer: 9–10 digits; rustdesk: 6–16 letters, digits, _ or -; other: 3–64 characters."
+          pattern: "^\\S{3,64}$"
+        appName:
+          type: string
+          description: Required when app is other, e.g. "Ammyy Admin".
         locationID:
           type: string
           format: uuid
@@ -2882,7 +2931,7 @@ components:
           format: date-time
     RemoteAccessData:
       type: object
-      required: [clientID, label, anydeskID, unattended]
+      required: [clientID, label, app, remoteID, unattended]
       properties:
         clientID:
           type: string
@@ -2890,9 +2939,15 @@ components:
         label:
           type: string
           minLength: 1
-        anydeskID:
+        app:
+          $ref: "#/components/schemas/RemoteApp"
+        remoteID:
           type: string
-          pattern: "^\\d{9,10}$"
+          description: "The ID the app shows, without spaces. anydesk and teamviewer: 9–10 digits; rustdesk: 6–16 letters, digits, _ or -; other: 3–64 characters."
+          pattern: "^\\S{3,64}$"
+        appName:
+          type: string
+          description: Required when app is other, e.g. "Ammyy Admin".
         locationID:
           type: string
           format: uuid
@@ -2915,9 +2970,15 @@ components:
         label:
           type: string
           minLength: 1
-        anydeskID:
+        app:
+          $ref: "#/components/schemas/RemoteApp"
+        remoteID:
           type: string
-          pattern: "^\\d{9,10}$"
+          description: "The ID the app shows, without spaces. anydesk and teamviewer: 9–10 digits; rustdesk: 6–16 letters, digits, _ or -; other: 3–64 characters."
+          pattern: "^\\S{3,64}$"
+        appName:
+          type: string
+          description: Required when app is other, e.g. "Ammyy Admin".
         locationID:
           type: string
           format: uuid

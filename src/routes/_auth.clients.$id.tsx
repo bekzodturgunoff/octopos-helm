@@ -46,6 +46,7 @@ import {fleetHealth, fleetHealthColor, fleetNodeLabel, healthWord} from "@/lib/f
 import {clientStatusColor, clientStatusLabel, healthLabel, subscriptionStatusColor, subscriptionStatusLabel, tagColor, vendorLabel} from "@/lib/status";
 import {formatDate, formatDateTime, formatDue, formatNumber, formatRelative} from "@/lib/format";
 import {can, Can} from "@/permission";
+import {DashLink} from "@/components/dash-link";
 import {useToast} from "@/components/toaster";
 import {RemoteAccessList} from "@/components/remote-access";
 import {OnboardingChecklist} from "@/components/onboarding";
@@ -336,6 +337,7 @@ function OverviewTab({client}: {client: ClientDetail}) {
 
         <Section title={t("clients:business", {defaultValue: "Business"})}>
           <Fields>
+            <Field wide label={t("clients:dashLink", {defaultValue: "Their dash"})} value={<DashLink slug={client.slug} />} />
             <Field label={t("clients:businessType", {defaultValue: "Type"})} value={<span className="capitalize">{client.businessType}</span>} />
             <Field label={t("clients:city", {defaultValue: "City"})} value={client.city ?? "—"} />
             <Field label={t("clients:locations", {defaultValue: "Locations"})} value={client.locationsCount} />
@@ -346,7 +348,7 @@ function OverviewTab({client}: {client: ClientDetail}) {
           </Fields>
         </Section>
 
-        <Section title={t("clients:remoteAccess", {defaultValue: "Remote access · AnyDesk"})}>
+        <Section title={t("clients:remoteAccessTitle", {defaultValue: "Remote access"})}>
           <RemoteAccessList client={client} writes={can(user, "client.write")} nodes={nodes?.nodes} />
         </Section>
 

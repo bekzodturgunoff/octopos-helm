@@ -486,7 +486,7 @@ function makeNode(client: MockClient, shape: NodeShape, index: number, locationN
   return node;
 }
 
-function anydeskID() {
+function remoteID() {
   let digits = random() > 0.5 ? 10 : 9;
   let first = String(between(1, 9));
   return first + Array.from({length: digits - 1}, () => between(0, 9)).join("");
@@ -689,12 +689,17 @@ function generate() {
           let node = makeNode(client, shape, fleetNodes.length, location.name);
           location.installations++;
           fleetNodes.push(node);
-          // Most tills get AnyDesk at install; a few were set up before that was the rule.
+          // Most tills get remote access at install (mostly AnyDesk, some RustDesk, the odd TeamViewer);
+          // a few were set up before that was the rule.
           if (story !== "onboarding" && random() > 0.15) {
             client.remoteAccess.push({
               id: id("ra"),
               label: `${location.name} · ${n === 0 ? `Till ${client.remoteAccess.filter((r) => r.locationID === location.id).length + 1}` : "Server"}`,
-              anydeskID: anydeskID(),
+              ...(() => {
+                let roll = random();
+                let app: T.RemoteApp = roll > 0.9 ? "teamviewer" : roll > 0.65 ? "rustdesk" : "anydesk";
+                return {app, remoteID: app === "rustdesk" ? String(between(100000000, 999999999)) : remoteID()};
+              })(),
               locationID: location.id,
               locationName: location.name,
               nodeID: node.nodeID,

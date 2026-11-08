@@ -240,7 +240,7 @@ export type ClientContact = {
 export type Client = {
   id: string;
   name: string;
-  /** The dash subdomain, e.g. "rayhon" for rayhon.octopos.uz. */
+  /** The dash subdomain, e.g. "sushi-panda" for sushi-panda.dash.octopos.uz. */
   slug: string;
   businessType: BusinessType;
   status: ClientStatus;
@@ -299,16 +299,22 @@ export type ClientLocation = {
   installations: number;
 };
 
+/** The app support connects with. "other" is anything Helm has no link for. */
+export type RemoteApp = "anydesk" | "rustdesk" | "teamviewer" | "other";
+
 /**
- * A machine at the client that support can reach with AnyDesk: a till, the local server, the office
- * PC. Only the ID is kept — the unattended-access password never lives in Helm, so a leaked console
+ * A machine at the client that support can reach remotely (AnyDesk, RustDesk, TeamViewer…): a till,
+ * the local server, the office PC. Only the ID is kept — the unattended-access password never lives in Helm, so a leaked console
  * is not a leaked key to every till; `passwordNote` says where the team keeps it.
  */
 export type RemoteAccess = {
   id: string;
   label: string;
-  /** 9–10 digits as AnyDesk shows them, without spaces. */
-  anydeskID: string;
+  app: RemoteApp;
+  /** The ID the app shows on the machine, without spaces. */
+  remoteID: string;
+  /** What "other" is, e.g. "Ammyy Admin". */
+  appName?: string;
   locationID?: string;
   locationName?: string;
   /** The installation this machine runs, when it is one. */
@@ -325,7 +331,9 @@ export type RemoteAccess = {
 export type RemoteAccessData = {
   clientID: string;
   label: string;
-  anydeskID: string;
+  app: RemoteApp;
+  remoteID: string;
+  appName?: string;
   locationID?: string;
   nodeID?: string;
   unattended: boolean;
@@ -359,6 +367,15 @@ export type ListClientsQuery = PageQuery & {
   /** Only clients with onboarding steps left. */
   onboarding?: boolean;
   sort?: ClientSort;
+};
+
+/** Whether a dash address is free, and one that is when it is not. */
+export type SlugCheck = {
+  slug: string;
+  available: boolean;
+  reason?: "taken" | "invalid" | "reserved";
+  /** A free address close to the one asked for. */
+  suggestion?: string;
 };
 
 export type CreateClientData = {

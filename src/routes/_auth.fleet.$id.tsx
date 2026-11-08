@@ -8,7 +8,8 @@ import {DetailPageSkeleton} from "@/components/skeletons";
 import {Field, Fields, Section} from "@/components/field";
 import {FormDialog, FormField} from "@/components/form-dialog";
 import {fleetHealth, fleetHealthColor, fleetHealthHint, fleetNodeLabel, healthWord} from "@/lib/fleet";
-import {formatAnydesk, formatDateTime} from "@/lib/format";
+import {formatDateTime} from "@/lib/format";
+import {appLabel, formatRemoteID} from "@/lib/remote-apps";
 import {useConnect} from "@/components/remote-access";
 import {can} from "@/permission";
 
@@ -161,7 +162,7 @@ function FleetNodeContent() {
   );
 }
 
-/** The till's own AnyDesk, when one is saved against this installation — the shortest way to the error. */
+/** The till's own remote access (AnyDesk, RustDesk…), when one is saved against this installation — the shortest way to the error. */
 function ConnectButton({tenantID, nodeID}: {tenantID: string; nodeID: string}) {
   let {t} = useTranslation();
   let connect = useConnect();
@@ -172,14 +173,14 @@ function ConnectButton({tenantID, nodeID}: {tenantID: string; nodeID: string}) {
     return (
       <Button size="sm" color="neutral" variant="outline" asChild>
         <Link to="/clients/$id" params={{id: tenantID}}>
-          {t("fleet:noAnydesk", {defaultValue: "No AnyDesk saved · add one"})}
+          {t("fleet:noRemote", {defaultValue: "No remote access saved · add one"})}
         </Link>
       </Button>
     );
   }
   return (
     <Button size="sm" color="brand" onClick={() => connect(entry)}>
-      {t("fleet:connectAnydesk", {defaultValue: "Connect with AnyDesk · {{id}}", id: formatAnydesk(entry.anydeskID)})}
+      {t("fleet:connectRemote", {defaultValue: "Connect with {{app}} · {{id}}", app: appLabel(entry), id: formatRemoteID(entry.remoteID)})}
     </Button>
   );
 }

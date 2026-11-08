@@ -10,7 +10,6 @@ import {StatCard} from "@/components/stat-card";
 import {ChartCard} from "@/components/chart-card";
 import {ECharts} from "@/components/echart";
 import {DeltaChip} from "@/components/delta-chip";
-import {StatusText} from "@/components/status-text";
 import {EmptyState} from "@/components/empty-state";
 import {Section} from "@/components/field";
 import {Skeleton} from "@/components/skeleton";
@@ -129,14 +128,21 @@ function Metrics() {
     };
   }, [data, theme, colorScheme, t]);
 
+  // One list drives both the ring and the legend under it, so a colour can only ever mean one thing.
+  // "Not running" is three states on the fleet page (crash-looping, misconfigured, never started),
+  // so it opens the "needs action" view, which shows all three, rather than filtering to one.
+  let fleetRows = useMemo(() => {
+    let p = readPalette(theme, colorScheme);
+    return [
+      {health: "healthy" as const, color: p.brand, label: t("fleet:health.healthy", {defaultValue: "Healthy"}), value: data.fleet.healthy},
+      {health: "degraded" as const, color: p.accentYellow, label: t("fleet:health.degraded", {defaultValue: "Degraded"}), value: data.fleet.degraded},
+      {health: "crashLooping" as const, color: p.danger, label: t("fleet:health.failing", {defaultValue: "Not running"}), value: data.fleet.failing},
+      {health: "offline" as const, color: p.onSurfaceSecondary, label: t("fleet:health.offline", {defaultValue: "Offline"}), value: data.fleet.offline},
+    ];
+  }, [data, theme, colorScheme, t]);
+
   let fleetOption = useMemo<EChartsOption>(() => {
     let p = readPalette(theme, colorScheme);
-    let rows = [
-      {name: t("fleet:health.healthy", {defaultValue: "Healthy"}), value: data.fleet.healthy, color: p.brand},
-      {name: t("fleet:health.degraded", {defaultValue: "Degraded"}), value: data.fleet.degraded, color: p.accentYellow},
-      {name: t("fleet:health.failing", {defaultValue: "Not running"}), value: data.fleet.failing, color: p.danger},
-      {name: t("fleet:health.offline", {defaultValue: "Offline"}), value: data.fleet.offline, color: p.onSurfaceSecondary},
-    ];
     return {
       tooltip: {trigger: "item", ...chartTooltipStyle(theme, colorScheme)},
       // The list under the ring is the legend; the chart's own would repeat it and crowd the ring.
@@ -162,20 +168,11 @@ function Metrics() {
             },
           },
           labelLine: {show: false},
-          data: rows.map((row) => ({name: row.name, value: row.value, itemStyle: {color: row.color}})),
+          data: fleetRows.map((row) => ({name: row.label, value: row.value, itemStyle: {color: row.color}})),
         },
       ],
     };
-  }, [data, theme, colorScheme, t]);
-
-  // "Not running" is three states on the fleet page (crash-looping, misconfigured, never started),
-  // so it opens the "needs action" view, which shows all three, rather than filtering to one.
-  let fleetRows = [
-    {health: "healthy" as const, color: "green" as const, label: t("fleet:health.healthy", {defaultValue: "Healthy"}), value: data.fleet.healthy},
-    {health: "degraded" as const, color: "yellow" as const, label: t("fleet:health.degraded", {defaultValue: "Degraded"}), value: data.fleet.degraded},
-    {health: "crashLooping" as const, color: "red" as const, label: t("fleet:health.failing", {defaultValue: "Not running"}), value: data.fleet.failing},
-    {health: "offline" as const, color: "neutral" as const, label: t("fleet:health.offline", {defaultValue: "Offline"}), value: data.fleet.offline},
-  ];
+  }, [data, theme, colorScheme, t, fleetRows]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -232,7 +229,10 @@ function Metrics() {
                   search={row.health === "crashLooping" ? {} : {view: "all", health: row.health}}
                   className="hover:bg-surface-400 flex items-center justify-between gap-3 rounded-lg px-2 py-1.5"
                 >
-                  <StatusText color={row.color}>{row.label}</StatusText>
+                  <span className="flex items-center gap-2">
+                    <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{backgroundColor: row.color}} />
+                    {row.label}
+                  </span>
                   <span className="tabular-nums">
                     {row.value}
                     <span className="text-on-surface-secondary ml-1.5 text-xs">{data.fleet.total ? Math.round((row.value / data.fleet.total) * 100) : 0}%</span>
