@@ -9,6 +9,8 @@ import {DefaultErrorComponent} from "./components/error.tsx";
 export const queryClient = new QueryClient({defaultOptions: {queries: {staleTime: 15_000, retry: 1}}});
 
 export const router = createRouter({
+  // Same base as Vite's, so /octopos-helm/clients routes to /clients on GitHub Pages.
+  basepath: import.meta.env.BASE_URL,
   scrollRestoration: true,
   routeTree,
   context: {

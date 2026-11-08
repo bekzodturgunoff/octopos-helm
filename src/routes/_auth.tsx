@@ -89,7 +89,7 @@ function Layout() {
       >
         <div className="flex h-32 shrink-0 items-center justify-center">
           <Link to="/" className="flex items-center text-2xl font-semibold tracking-tighter">
-            <img src={theme === "dark" ? "/logo/logo_light.png" : "/logo/logo_dark.png"} alt="Octopos logo" className="mr-2 h-8 w-auto" />
+            <img src={`${import.meta.env.BASE_URL}logo/${theme === "dark" ? "logo_light" : "logo_dark"}.png`} alt="Octopos logo" className="mr-2 h-8 w-auto" />
             Helm
           </Link>
         </div>

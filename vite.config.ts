@@ -5,6 +5,9 @@ import {tanstackRouter} from "@tanstack/router-plugin/vite";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
+  // GitHub Pages serves the app from /octopos-helm/; locally and on a real domain it is /.
+  // The Pages workflow sets BASE_PATH, everything else leaves it alone.
+  base: process.env.BASE_PATH || "/",
   server: {
     // The dash takes 5173; running both side by side is the normal way to work on a client.
     port: 5180,

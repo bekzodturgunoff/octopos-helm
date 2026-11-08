@@ -90,7 +90,7 @@ function Login() {
     <main className="flex min-h-svh items-center justify-center p-4">
       <div className="flex w-full max-w-md flex-col gap-5">
         <div className="flex items-center text-2xl font-semibold tracking-tighter">
-          <img src={theme === "dark" ? "/logo/logo_light.png" : "/logo/logo_dark.png"} alt="Octopos logo" className="mr-2 h-8 w-auto" />
+          <img src={`${import.meta.env.BASE_URL}logo/${theme === "dark" ? "logo_light" : "logo_dark"}.png`} alt="Octopos logo" className="mr-2 h-8 w-auto" />
           Octopos Helm
         </div>
         <div className="flex flex-col gap-1">
