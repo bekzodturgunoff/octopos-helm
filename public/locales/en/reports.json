@@ -23,5 +23,6 @@
   "reactivation": "Reactivation",
   "reports": "Reports",
   "revenueKept": "Revenue kept",
+  "showAllMonths": "Show all {{count}} months",
   "signed": "Signed"
 }

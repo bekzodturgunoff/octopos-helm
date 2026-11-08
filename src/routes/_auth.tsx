@@ -171,7 +171,9 @@ function Layout() {
           </div>
         ) : null}
       </aside>
-      <div className="mx-auto w-full max-w-7xl min-w-0">
+      {/* overflow-x-clip: nothing in a page can make it wider than the screen, which on a phone zooms the
+          page out and sets the bottom bar drifting. Clip, unlike hidden, keeps the sticky header working. */}
+      <div className="mx-auto w-full max-w-7xl min-w-0 overflow-x-clip">
         <div className="bg-surface sticky top-0 z-[15] flex h-24 items-center px-4 sm:h-32">
           <div className="flex w-full items-center justify-between">
             <div className="flex items-center gap-4">
@@ -217,7 +219,7 @@ function Layout() {
                     </span>
                     <span className="text-on-surface-secondary text-xs">{user.role.name}</span>
                   </span>
-                  <ChevronRight size={20} className="transition-transform duration-200" />
+                  <ChevronRight size={20} className="transition-transform duration-200 max-sm:hidden" />
                 </NavLink>
               </Show>
             </div>
