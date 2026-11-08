@@ -62,7 +62,7 @@ function PlanGrid() {
             </Link>
             <div className="bg-surface-400 flex flex-col rounded-lg p-3">
               <span className="text-on-surface-secondary text-xs">{t("billing:mrr", {defaultValue: "MRR"})}</span>
-              <span className="truncate text-lg font-semibold tabular-nums">{plan.mrr.display}</span>
+              <span className="text-base font-semibold tabular-nums sm:text-lg">{plan.mrr.display}</span>
             </div>
           </div>
           <ul className="flex flex-col gap-2 text-sm">

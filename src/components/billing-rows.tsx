@@ -17,7 +17,7 @@ export function InvoiceRow({invoice, showClient = false, actions}: {invoice: Inv
             {invoice.number}
             {showClient ? <span className="text-on-surface-secondary font-normal"> · {invoice.clientName}</span> : null}
           </span>
-          <span className={cn("truncate text-sm", overdue ? "text-error-bright" : "text-on-surface-secondary")}>
+          <span className={cn("line-clamp-2 text-sm sm:truncate", overdue ? "text-error-bright" : "text-on-surface-secondary")}>
             {t("billing:issued", {defaultValue: "Issued {{date}}", date: formatDate(invoice.issuedAt)})} ·{" "}
             {invoice.status === "paid"
               ? t("billing:paidOnDate", {defaultValue: "paid {{date}}", date: formatDate(invoice.paidAt)})
@@ -57,7 +57,7 @@ export function PaymentRow({payment, showClient = true}: {payment: Payment; show
           )}
           {payment.invoiceNumber ? <span className="text-on-surface-secondary"> · {payment.invoiceNumber}</span> : null}
         </span>
-        <span className={cn("truncate text-sm", payment.status === "failed" ? "text-error-bright" : "text-on-surface-secondary")}>
+        <span className={cn("line-clamp-2 text-sm sm:truncate", payment.status === "failed" ? "text-error-bright" : "text-on-surface-secondary")}>
           {formatDate(payment.createdAt)} · {showClient ? how : null}
           {payment.failureReason ? ` · ${payment.failureReason}` : null}
           {payment.recordedBy ? ` · ${t("billing:recordedBy", {defaultValue: "recorded by {{name}}", name: payment.recordedBy.name})}` : null}

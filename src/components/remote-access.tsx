@@ -85,7 +85,7 @@ export function RemoteAccessList({client, writes, nodes}: {client: ClientDetail;
             <span className="bg-surface-500 flex size-10 shrink-0 items-center justify-center rounded-lg">
               <Monitor size={18} />
             </span>
-            <span className="flex min-w-0 flex-1 flex-col">
+            <span className="flex min-w-0 flex-1 basis-48 flex-col">
               <span className="flex flex-wrap items-center gap-2">
                 <span className="truncate font-medium">{entry.label}</span>
                 {entry.unattended ? (
@@ -95,7 +95,7 @@ export function RemoteAccessList({client, writes, nodes}: {client: ClientDetail;
                 )}
               </span>
               <span className="flex items-center gap-1">
-                <span className="font-mono text-lg tracking-wide tabular-nums">{formatAnydesk(entry.anydeskID)}</span>
+                <span className="font-mono text-lg tracking-wide whitespace-nowrap tabular-nums">{formatAnydesk(entry.anydeskID)}</span>
                 <CopyButton value={entry.anydeskID} label={t("clients:copyId", {defaultValue: "Copy ID"})} />
               </span>
               <span className="text-on-surface-secondary text-xs">
@@ -115,7 +115,7 @@ export function RemoteAccessList({client, writes, nodes}: {client: ClientDetail;
               </span>
               {entry.note ? <span className="text-on-surface-secondary text-xs">{entry.note}</span> : null}
             </span>
-            <span className="flex shrink-0 items-center gap-1">
+            <span className="ml-auto flex shrink-0 items-center gap-1">
               <Button size="sm" color="brand" onClick={() => connect(entry)}>
                 <Plug size={14} className="mr-1" />
                 {t("clients:connect", {defaultValue: "Connect"})}

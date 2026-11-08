@@ -30,6 +30,7 @@ export function FormDialog({
   description,
   action,
   danger,
+  disabled,
   success,
   onSubmit,
   children,
@@ -41,6 +42,8 @@ export function FormDialog({
   description?: string;
   action: string;
   danger?: boolean;
+  /** Keeps the action off until the form has what it needs. */
+  disabled?: boolean;
   success: string;
   onSubmit: (data: FormData) => Promise<unknown>;
   children?: React.ReactNode;
@@ -93,7 +96,7 @@ export function FormDialog({
           {error ? <ErrorAlert title={t("common:error", {defaultValue: "Error"})} message={error} /> : null}
           {children}
           <div className="flex flex-col gap-2">
-            <Button size="lg" color={danger ? "danger" : "brand"} type="submit" loading={pending} disabled={pending}>
+            <Button size="lg" color={danger ? "danger" : "brand"} type="submit" loading={pending} disabled={pending || disabled}>
               {action}
             </Button>
             <Button size="lg" color="neutral" variant="ghost" type="button" onClick={() => setOpen(false)}>

@@ -506,10 +506,18 @@ export type OverdueAccount = {
   daysOverdue: number;
   remindersSent: number;
   lastReminderAt?: string;
-  /** The server's dunning schedule, so every operator sees the same next step. */
-  nextStep: "remind" | "finalNotice" | "suspend" | "waitForPromise";
+  /**
+   * What happens next on this invoice, from the payment-chasing settings. With automatic chasing on,
+   * retries, reminders, the final notice and (if set) suspension happen on their own at nextStepAt;
+   * with it off, or for a step the settings leave to people, `manual` is true and someone has to act.
+   */
+  nextStep: "retry" | "remind" | "finalNotice" | "suspend" | "waitForPromise" | "suspended";
   nextStepAt: string;
-  /** Every step the payment-chasing settings plan for this invoice, done and to come. */
+  /** The next step waits for someone in the team rather than happening on its own. */
+  manual: boolean;
+  /** The final notice went out, automatically or by hand. Suspension never comes before it. */
+  finalNoticeSentAt?: string;
+  /** Every step the automatic chase plans for this invoice, done and to come. Empty when automatic chasing is off. */
   schedule: DunningStep[];
   promise?: PaymentPromise;
   health: ClientHealth;
@@ -577,6 +585,8 @@ export type SendReminderData = {
   message?: string;
   /** Append a Click/Payme link that pays this invoice. */
   includePayLink?: boolean;
+  /** A final notice counts as one: suspension can follow it once the grace period is over. */
+  kind?: "reminder" | "finalNotice";
 };
 
 export type WinBackCandidate = {
@@ -725,24 +735,6 @@ export type Cohort = {
   revenueRetention: number[];
 };
 
-export type HealthFactor = "payment" | "activity" | "fleet";
-
-export type HealthSettings = {
-  /** Percent, summing to 100. */
-  weights: Record<HealthFactor, number>;
-  thresholds: {good: number; watch: number};
-  updatedAt?: string;
-  updatedBy?: OperatorRef;
-};
-
-export type HealthPreview = {
-  distribution: Record<HealthGrade, number>;
-  /** Clients whose grade would change, worst first. */
-  changes: {clientID: string; clientName: string; from: HealthGrade; to: HealthGrade; score: number}[];
-  /** Average factor score of clients who left in the last 180 days against those who stayed — what actually predicted it. */
-  signals: {factor: HealthFactor; churnedAvg: number; retainedAvg: number}[];
-};
-
 export type AttentionKind = "pastDue" | "paymentFailed" | "trialEnding" | "fleetFailing" | "inactive" | "renewalDue" | "onboardingStalled" | "noFirstSale";
 
 export type AttentionItem = {
@@ -844,23 +836,6 @@ export type ActivityEvent = {
 };
 
 export type ListActivityQuery = PageQuery & {clientID?: string; actorID?: string; category?: ActivityCategory};
-
-// ---- Saved views ---------------------------------------------------------------------------------
-
-/** A filtered list somebody wanted again: where it lives and the search params that make it. */
-export type SavedView = {
-  id: string;
-  name: string;
-  path: "/clients" | "/billing/invoices" | "/billing/payments" | "/fleet" | "/tasks";
-  search: Record<string, string | number | boolean>;
-  pinned: boolean;
-  /** Everyone on the team sees it; otherwise only its owner. */
-  shared: boolean;
-  owner: OperatorRef;
-  createdAt: string;
-};
-
-export type CreateSavedViewData = Pick<SavedView, "name" | "path" | "search" | "pinned" | "shared">;
 
 // ---- Bulk ----------------------------------------------------------------------------------------
 

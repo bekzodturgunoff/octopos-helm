@@ -81,7 +81,8 @@ function Movement() {
     ];
     return {
       grid: CHART_GRID.withLegend,
-      legend: {top: 0, left: 0},
+      // Five series do not fit one line on a phone; scrolling keeps the legend clear of the bars.
+      legend: {top: 0, left: 0, type: "scroll"},
       tooltip: {trigger: "axis", ...chartTooltipStyle(theme, colorScheme), valueFormatter: (value) => `${formatCompact(Number(value))} ${data.currency}`},
       xAxis: {type: "category", data: data.months.map((m) => monthLabel(m.month)), ...axis},
       yAxis: {type: "value", ...axis, axisLabel: {...axis.axisLabel, formatter: (v: number) => formatCompact(v)}, splitLine: {lineStyle: {color: p.border}}},
@@ -99,7 +100,7 @@ function Movement() {
 
   return (
     <div className="flex flex-col gap-6">
-      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 [&>li:last-child:nth-child(odd)]:col-span-2 sm:[&>li:last-child:nth-child(odd)]:col-span-1">
         <StatCard
           label={t("reports:nrr", {defaultValue: "Net revenue retention"})}
           value={formatPercent(data.nrr, 0)}
@@ -126,7 +127,7 @@ function Movement() {
             <thead className="text-on-surface-secondary text-xs">
               <tr className="border-b-border-secondary border-b">
                 {["Month", "Start", "New", "Expansion", "Reactivated", "Contraction", "Churned", "End"].map((h) => (
-                  <th key={h} className={cn("py-2 font-medium", h === "Month" ? "text-left" : "text-right")}>
+                  <th key={h} className={cn("py-2 font-medium", h === "Month" ? "bg-surface sticky left-0 pr-3 text-left" : "text-right")}>
                     {t(`reports:col.${h}`, {defaultValue: h})}
                   </th>
                 ))}
@@ -138,7 +139,7 @@ function Movement() {
                 .reverse()
                 .map((m) => (
                   <tr key={m.month} className="border-b-border-secondary border-b last:border-b-0">
-                    <td className="py-2">{monthLabel(m.month)}</td>
+                    <td className="bg-surface sticky left-0 py-2 pr-3 whitespace-nowrap">{monthLabel(m.month)}</td>
                     <td className="text-right">{formatNumber(m.startingMrr)}</td>
                     <td className="text-on-surface-green text-right">{money(m.newMrr)}</td>
                     <td className="text-on-surface-blue text-right">{money(m.expansionMrr)}</td>
@@ -190,7 +191,7 @@ function Cohorts() {
         <table className="text-xs tabular-nums">
           <thead className="text-on-surface-secondary">
             <tr>
-              <th className="py-1 pr-3 text-left font-medium">{t("reports:signed", {defaultValue: "Signed"})}</th>
+              <th className="bg-surface sticky left-0 py-1 pr-3 text-left font-medium">{t("reports:signed", {defaultValue: "Signed"})}</th>
               <th className="py-1 pr-3 text-right font-medium">{t("reports:clientsCol", {defaultValue: "Clients"})}</th>
               {Array.from({length: width}, (_, i) => (
                 <th key={i} className="w-12 py-1 text-center font-medium">
@@ -204,7 +205,7 @@ function Cohorts() {
               let row = mode === "clients" ? cohort.clientRetention : cohort.revenueRetention;
               return (
                 <tr key={cohort.month}>
-                  <td className="py-0.5 pr-3 whitespace-nowrap">{monthLabel(cohort.month)}</td>
+                  <td className="bg-surface sticky left-0 py-0.5 pr-3 whitespace-nowrap">{monthLabel(cohort.month)}</td>
                   <td className="text-on-surface-secondary py-0.5 pr-3 text-right">{cohort.clients}</td>
                   {Array.from({length: width}, (_, i) => (
                     <td key={i} className="p-0.5">

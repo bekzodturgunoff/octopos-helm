@@ -5,7 +5,6 @@ import {CreditCard} from "lucide-react";
 import {useTranslation} from "react-i18next";
 import {listPayments, listPaymentsOptions, type BillingVendor, type Payment, type PaymentStatus} from "@/api";
 import {ExportButton} from "@/components/export-button";
-import {SaveViewButton} from "@/components/saved-views";
 import type {Column} from "@/lib/csv";
 
 let PAYMENT_COLUMNS: Column<Payment>[] = [
@@ -55,7 +54,6 @@ function Payments() {
         subtitle={t("billing:paymentsHint", {defaultValue: "Failed charges stay here with the provider's reason, so a call can start with it."})}
       >
         <ExportButton name="payments" load={() => listPayments({query: {...search, page: 1, pageSize: 1000}}).then((page) => page.items)} columns={PAYMENT_COLUMNS} />
-        <SaveViewButton path="/billing/payments" search={search} />
       </PageHeader>
       <div className="flex flex-wrap gap-2">
         <FilterSelect

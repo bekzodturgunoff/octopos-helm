@@ -14,13 +14,13 @@ type Props = {
 
 export function StatCard({label, hint, value, ratio, ratioLabel, delta, action}: Props) {
   return (
-    <li className="bg-surface-300 flex w-full flex-col gap-2 rounded-xl p-4">
+    <li className="bg-surface-300 flex w-full min-w-0 flex-col gap-2 rounded-xl p-3 sm:p-4">
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-medium">{label}</span>
         {delta}
       </div>
       <div className="flex flex-wrap items-baseline gap-2">
-        <span className="text-2xl font-semibold tabular-nums">{value}</span>
+        <span className="text-lg font-semibold tabular-nums sm:text-2xl">{value}</span>
         {ratio !== undefined ? (
           <span className="text-on-surface-secondary text-sm">
             <span className="tabular-nums">{ratio}%</span>

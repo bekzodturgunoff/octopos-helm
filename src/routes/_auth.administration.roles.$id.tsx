@@ -67,7 +67,7 @@ function SingleRole() {
           <h1 className="text-3xl font-semibold tracking-tight">{role.name}</h1>
           {error ? <ErrorAlert message={error.message} title={t("common:error", {defaultValue: "Error"})} /> : null}
           <Show when={writes && !role.internal}>
-            <FixedFooter className="px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:static sm:px-0">
+            <FixedFooter className="z-20 px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:static sm:px-0">
               <ConfirmationAlert
                 title={`${t("common:delete", {defaultValue: "Delete"})} ${role.name}`}
                 description={

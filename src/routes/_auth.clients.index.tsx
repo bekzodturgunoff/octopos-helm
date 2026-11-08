@@ -25,7 +25,6 @@ import {FilterSelect} from "@/components/filter-bar";
 import {HealthBadge} from "@/components/health-badge";
 import {OnboardingProgress} from "@/components/onboarding";
 import {ExportButton} from "@/components/export-button";
-import {SaveViewButton} from "@/components/saved-views";
 import {FormDialog, FormField} from "@/components/form-dialog";
 import {TaskFields} from "@/components/task-list";
 import type {Column} from "@/lib/csv";
@@ -90,7 +89,6 @@ function Clients() {
           </Button>
         </Can>
         <ExportButton name="clients" load={() => listClients({query: {...search, page: 1, pageSize: 1000}}).then((page) => page.items)} columns={CLIENT_COLUMNS} />
-        <SaveViewButton path="/clients" search={search} />
       </PageHeader>
       <div className="flex flex-col gap-3">
         <Input
@@ -239,13 +237,16 @@ function ClientList({search}: {search: Search}) {
         {data.items.map((client) => (
           <li key={client.id} className="flex items-center gap-3">
             {selectable ? (
-              <input
-                type="checkbox"
-                aria-label={t("common:select", {defaultValue: "Select {{name}}", name: client.name})}
-                className="accent-accent ml-2 size-4 shrink-0"
-                checked={selected.has(client.id)}
-                onChange={() => toggle(client.id)}
-              />
+              // The label is the tap target: a bare 16px box is too small for a thumb.
+              <label className="-mr-3 flex shrink-0 cursor-pointer items-center self-stretch py-2 pr-3 pl-2">
+                <input
+                  type="checkbox"
+                  aria-label={t("common:select", {defaultValue: "Select {{name}}", name: client.name})}
+                  className="accent-accent size-4"
+                  checked={selected.has(client.id)}
+                  onChange={() => toggle(client.id)}
+                />
+              </label>
             ) : null}
             <ClientRow client={client} />
           </li>

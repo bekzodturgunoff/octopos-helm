@@ -1,6 +1,6 @@
 import {NavOption, NavOptionAdornmentWithBg} from "@yeahuz/kdsx-react";
 import {createFileRoute, Link} from "@tanstack/react-router";
-import {BellRing, HeartPulse, History, Users, Vault} from "lucide-react";
+import {BellRing, History, Users, Vault} from "lucide-react";
 import {useTranslation} from "react-i18next";
 import {Can} from "@/permission";
 
@@ -61,21 +61,6 @@ function Administration() {
             </Link>
           </li>
         </Can>
-        <Can subject={user} capability="client.read">
-          <li>
-            <Link to="/administration/health-score">
-              <NavOption
-                startAdornment={
-                  <NavOptionAdornmentWithBg>
-                    <HeartPulse size={20} />
-                  </NavOptionAdornmentWithBg>
-                }
-                title={t("team:healthScore", {defaultValue: "Health score"})}
-                subtitle={t("team:healthScoreSubtitle", {defaultValue: "Weights and grades behind every client's score, checked against who actually left"})}
-              />
-            </Link>
-          </li>
-        </Can>
         <Can subject={user} capability="audit.read">
           <li>
             <Link to="/administration/activity">
@@ -91,7 +76,6 @@ function Administration() {
             </Link>
           </li>
         </Can>
-        
       </ul>
     </div>
   );

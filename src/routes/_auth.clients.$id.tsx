@@ -9,7 +9,6 @@ import {
   createClientNoteMutation,
   deleteClientNoteMutation,
   getClientOptions,
-  getHealthSettingsOptions,
   getOperatorFleetNodesOptions,
   listActivityOptions,
   listClientNotesOptions,
@@ -54,13 +53,14 @@ import {SupportSessionList} from "@/components/support-session";
 import {ActivityFilter} from "@/components/activity-list";
 
 type Tab = "overview" | "billing" | "installations" | "notes" | "activity";
+let TABS: Tab[] = ["overview", "billing", "installations", "notes", "activity"];
 
 export let Route = createFileRoute("/_auth/clients/$id")({
   beforeLoad: ({context}) => {
     if (!can(context.user, "client.read")) throw redirect({to: "/403"});
     return {backLink: {to: "/clients"}};
   },
-  validateSearch: (search: Record<string, unknown>): {tab?: Tab} => ({tab: (search.tab as Tab) || undefined}),
+  validateSearch: (search: Record<string, unknown>): {tab?: Tab} => ({tab: TABS.includes(search.tab as Tab) ? (search.tab as Tab) : undefined}),
   loader: ({context, params}) => {
     context.queryClient.prefetchQuery(getClientOptions({query: {id: params.id}}));
   },
@@ -198,11 +198,27 @@ function ClientContent() {
 
       <Tabs value={tab} onValueChange={(value) => navigate({search: {tab: value === "overview" ? undefined : (value as Tab)}, replace: true})}>
         <TabsList className="overflow-x-auto">
-          <TabsTrigger value="overview">{t("clients:tabOverview", {defaultValue: "Overview"})}</TabsTrigger>
-          {can(user, "billing.read") ? <TabsTrigger value="billing">{t("billing:billing", {defaultValue: "Billing"})}</TabsTrigger> : null}
-          {can(user, "fleet.read") ? <TabsTrigger value="installations">{t("fleet:installations", {defaultValue: "Installations"})}</TabsTrigger> : null}
-          <TabsTrigger value="notes">{t("clients:notes", {defaultValue: "Notes"})}</TabsTrigger>
-          {can(user, "audit.read") ? <TabsTrigger value="activity">{t("common:timeline", {defaultValue: "Timeline"})}</TabsTrigger> : null}
+          <TabsTrigger className="shrink-0 px-2 text-sm sm:px-4 sm:text-base" value="overview">
+            {t("clients:tabOverview", {defaultValue: "Overview"})}
+          </TabsTrigger>
+          {can(user, "billing.read") ? (
+            <TabsTrigger className="shrink-0 px-2 text-sm sm:px-4 sm:text-base" value="billing">
+              {t("billing:billing", {defaultValue: "Billing"})}
+            </TabsTrigger>
+          ) : null}
+          {can(user, "fleet.read") ? (
+            <TabsTrigger className="shrink-0 px-2 text-sm sm:px-4 sm:text-base" value="installations">
+              {t("fleet:installations", {defaultValue: "Installations"})}
+            </TabsTrigger>
+          ) : null}
+          <TabsTrigger className="shrink-0 px-2 text-sm sm:px-4 sm:text-base" value="notes">
+            {t("clients:notes", {defaultValue: "Notes"})}
+          </TabsTrigger>
+          {can(user, "audit.read") ? (
+            <TabsTrigger className="shrink-0 px-2 text-sm sm:px-4 sm:text-base" value="activity">
+              {t("common:timeline", {defaultValue: "Timeline"})}
+            </TabsTrigger>
+          ) : null}
         </TabsList>
       </Tabs>
 
@@ -286,7 +302,9 @@ function OverviewTab({client}: {client: ClientDetail}) {
                 value={
                   sub.nativeBilling
                     ? t("billing:autopay", {defaultValue: "Autopay via {{vendor}}", vendor: vendorLabel(sub.vendor)})
-                    : t("billing:manualVia", {defaultValue: "Manual · {{vendor}}", vendor: vendorLabel(sub.vendor)})
+                    : sub.vendor === "none"
+                      ? t("billing:manualPay", {defaultValue: "Pays manually"})
+                      : t("billing:manualVia", {defaultValue: "Manual · {{vendor}}", vendor: vendorLabel(sub.vendor)})
                 }
               />
               <Field
@@ -360,7 +378,7 @@ function OverviewTab({client}: {client: ClientDetail}) {
                 <li key={location.id} className="flex items-center justify-between gap-4">
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate">{location.name}</span>
-                    <span className="text-on-surface-secondary truncate text-sm">{location.address}</span>
+                    <span className="text-on-surface-secondary line-clamp-2 text-sm sm:truncate">{location.address}</span>
                   </span>
                   <span className="text-on-surface-secondary shrink-0 text-sm">{t("fleet:installationCount", {defaultValue: "{{count}} installations", count: location.installations})}</span>
                 </li>
@@ -379,7 +397,9 @@ function OverviewTab({client}: {client: ClientDetail}) {
             <HealthBadge health={client.health} showLabel />
           </div>
           <HealthBreakdown health={client.health} />
-          <HealthWeightsHint />
+          <p className="text-on-surface-secondary text-xs">
+            {t("clients:healthHint", {defaultValue: "Made from payments, activity and installations. Computed by the server nightly and after every payment."})}
+          </p>
         </div>
         {can(user, "client.impersonate") ? (
           <Section title={t("clients:supportSessions", {defaultValue: "Support sessions"})}>
@@ -407,23 +427,6 @@ function OverviewTab({client}: {client: ClientDetail}) {
         </Section>
       </div>
     </div>
-  );
-}
-
-function HealthWeightsHint() {
-  let {t} = useTranslation();
-  let {data} = useQuery(getHealthSettingsOptions());
-  if (!data) return null;
-  return (
-    <p className="text-on-surface-secondary text-xs">
-      {t("clients:healthHintDynamic", {
-        defaultValue: "Payments weigh {{payment}}%, activity {{activity}}%, installations {{fleet}}%. Computed by the server nightly and after every payment.",
-        ...data.weights,
-      })}{" "}
-      <Link to="/administration/health-score" className="text-on-surface-accent hover:underline">
-        {t("clients:tune", {defaultValue: "Tune"})}
-      </Link>
-    </p>
   );
 }
 
@@ -525,7 +528,7 @@ function InstallationsTab({clientID}: {clientID: string}) {
             <Link to="/fleet/$id" params={{id: node.nodeID}} className="hover:bg-surface-300 flex items-center justify-between gap-4 rounded-xl px-2 py-3">
               <span className="flex min-w-0 flex-col">
                 <span className="truncate font-medium">{fleetNodeLabel(node)}</span>
-                <span className="text-on-surface-secondary truncate text-sm">
+                <span className="text-on-surface-secondary line-clamp-2 text-sm sm:truncate">
                   {node.location?.name ?? "—"} · {node.runningVersion ?? t("fleet:notRunning", {defaultValue: "not running"})} · {t("fleet:lastExchange", {defaultValue: "exchanged"})}{" "}
                   {formatRelative(node.lastExchangeAt)}
                 </span>

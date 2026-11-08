@@ -99,10 +99,14 @@ function TaskRow({task, compact, onEdit}: {task: Task; compact: boolean; onEdit:
         aria-label={done ? t("common:reopen", {defaultValue: "Reopen"}) : t("common:markDone", {defaultValue: "Mark done"})}
         aria-pressed={done}
         onClick={toggle}
-        className={cn("border-border hover:border-accent mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors", {
-          "bg-accent border-accent text-accent-emphasis": done,
-          "border-error-bright": late,
-        })}
+        // The pseudo-element widens the tap target to 40px without moving the box.
+        className={cn(
+          "border-border hover:border-accent relative mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors before:absolute before:-inset-2.5 before:content-['']",
+          {
+            "bg-accent border-accent text-accent-emphasis": done,
+            "border-error-bright": late,
+          },
+        )}
       >
         <Check size={14} strokeWidth={3} className={cn("duration-200", done ? "scale-100" : "scale-0")} />
       </button>

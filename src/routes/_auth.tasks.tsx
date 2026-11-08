@@ -64,7 +64,7 @@ function Tasks() {
   }, [user]);
 
   let tab = (value: View, label: string, count?: number) => (
-    <TabsTrigger value={value} className="gap-1.5">
+    <TabsTrigger value={value} className="shrink-0 gap-1.5 px-2 text-sm sm:px-4 sm:text-base">
       {label}
       {count ? <span className="bg-neutral-active text-on-surface-secondary rounded-md px-1.5 text-xs tabular-nums">{count}</span> : null}
     </TabsTrigger>

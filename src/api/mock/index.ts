@@ -7,9 +7,6 @@ import {
   announcements,
   clients,
   computeHealth,
-  grade,
-  healthSettings,
-  scoreWith,
   onboardingOf,
   onboardingSteps,
   daysFromNow,
@@ -295,22 +292,8 @@ let handlers: Record<string, Handler> = {
     }
     return {cohorts};
   },
-  "GET /operator.health.settings.get": () => healthSettings,
-  "POST /operator.health.preview": ({body}) => previewHealth(validHealth(body as unknown as T.HealthSettings)),
-  "POST /operator.health.settings.update": ({body, me}) => {
-    let data = validHealth(body as unknown as T.HealthSettings);
-    let preview = previewHealth(data);
-    Object.assign(healthSettings, data, {updatedAt: new Date().toISOString(), updatedBy: me ? operatorRef(me) : undefined});
-    for (let c of clients) c.health = {...c.health, score: scoreWith(c.health, healthSettings), grade: grade(scoreWith(c.health, healthSettings), healthSettings)};
-    log(
-      me,
-      "client.healthTuned",
-      `Health weights → payments ${data.weights.payment}%, activity ${data.weights.activity}%, installations ${data.weights.fleet}% · ${preview.changes.length} clients changed grade`,
-    );
-    return healthSettings;
-  },
   "GET /operator.attention": ({me}) => {
-    settlePromises();
+    runChasing();
     let items: T.AttentionItem[] = [];
     let visible = visibleTo(me, "client.read");
     for (let c of clients.filter((c) => visible(c.id))) {
@@ -511,6 +494,8 @@ let handlers: Record<string, Handler> = {
     let client = findClient(body.id);
     client.status = "suspended";
     client.suspendedReason = String(body.reason || "");
+    if (overdueInvoicesOf(client.id).length) suspendedForNonPayment.add(client.id);
+    else suspendedForNonPayment.delete(client.id);
     refresh(client);
     log(me, "client.suspended", client.suspendedReason, client);
     return client;
@@ -519,6 +504,7 @@ let handlers: Record<string, Handler> = {
     let client = findClient(body.id);
     client.status = "active";
     client.suspendedReason = undefined;
+    suspendedForNonPayment.delete(client.id);
     refresh(client);
     log(me, "client.reactivated", "Reactivated access", client);
     return client;
@@ -714,43 +700,26 @@ let handlers: Record<string, Handler> = {
   },
   "GET /operator.billing.overdue": ({me}) => {
     let visible = visibleTo(me, "billing.read");
-    settlePromises();
+    runChasing();
     let accounts: T.OverdueAccount[] = invoices
       .filter((i) => visible(i.clientID) && i.status === "open" && Date.parse(i.dueAt) < Date.now())
       .map((invoice) => {
         let client = findClient(invoice.clientID);
-        let daysOverdue = Math.floor((Date.now() - Date.parse(invoice.dueAt)) / 86400000);
-        let sent = reminders[client.id]?.count ?? 0;
         let promise = promises.filter((p) => p.invoiceID === invoice.id && p.status !== "kept").at(-1);
-        let schedule = scheduleFor(invoice, client, sent, promise);
-        let upcoming = schedule.find((step) => step.status === "upcoming");
-        // A step that was due and never went out comes before anything later in the schedule:
-        // nobody is suspended without the final notice having been sent.
-        let missed = schedule.find((step) => step.status === "skipped");
-        let finalSent = schedule.some((step) => step.kind === "finalNotice" && step.status === "done");
-        let nextStep: T.OverdueAccount["nextStep"] =
-          promise?.status === "pending"
-            ? "waitForPromise"
-            : missed?.kind === "finalNotice" || (!finalSent && daysOverdue >= dunningSettings.finalNoticeDay)
-              ? "finalNotice"
-              : missed
-                ? "remind"
-                : daysOverdue >= dunningSettings.graceDays || upcoming?.kind === "suspend"
-                  ? "suspend"
-                  : upcoming?.kind === "finalNotice"
-                    ? "finalNotice"
-                    : "remind";
+        let schedule = scheduleFor(invoice, client, promise);
+        let sent = reminders[client.id];
+        let automatic = schedule.filter((step) => step.status === "done" && (step.kind === "reminder" || step.kind === "finalNotice")).length;
         return {
           clientID: client.id,
           clientName: client.name,
           owner: client.owner,
           plan: client.subscription?.plan,
           invoice,
-          daysOverdue,
-          remindersSent: sent,
-          lastReminderAt: reminders[client.id]?.lastAt,
-          nextStep,
-          nextStepAt: promise?.status === "pending" ? promise.promisedFor : missed ? new Date().toISOString() : (upcoming?.at ?? new Date().toISOString()),
+          daysOverdue: Math.floor((Date.now() - Date.parse(invoice.dueAt)) / 86400000),
+          remindersSent: (sent?.count ?? 0) + automatic,
+          lastReminderAt: latest(sent?.lastAt, schedule.filter((step) => step.status === "done" && step.kind !== "retry" && step.kind !== "suspend").at(-1)?.at),
+          finalNoticeSentAt: finalNoticeAt(invoice, client, schedule),
+          ...nextStepFor(invoice, client, schedule, promise),
           schedule,
           promise,
           health: client.health,
@@ -762,26 +731,35 @@ let handlers: Record<string, Handler> = {
   "POST /operator.billing.sendReminder": ({body, me}) => {
     let data = body as unknown as T.SendReminderData;
     let client = findClient(data.clientID);
+    if (!data.message?.trim()) fail(422, "MESSAGE_REQUIRED", "Write the message to send.");
     let entry = (reminders[client.id] ??= {count: 0});
     entry.count++;
     entry.lastAt = new Date().toISOString();
-    log(me, "billing.reminderSent", `Sent payment reminder by ${data.channel}${data.includePayLink ? " with a pay link" : ""}`, client);
+    if (data.kind === "finalNotice") entry.finalAt = entry.lastAt;
+    let what = data.kind === "finalNotice" ? "final notice" : "payment reminder";
+    log(me, "billing.reminderSent", `Sent ${what} by ${data.channel}${data.includePayLink ? " with a pay link" : ""}`, client);
     return {sentAt: entry.lastAt};
   },
   "GET /operator.billing.dunning.get": () => dunningSettings,
   "POST /operator.billing.dunning.update": ({body, me}) => {
     let data = body as unknown as T.DunningSettings;
-    let days = (list: number[]) => list.every((d) => Number.isInteger(d) && d >= 0 && d <= 90);
-    if (!days(data.retryDays) || !days(data.reminderDays)) fail(422, "DAYS_INVALID", "Days must be whole numbers from 0 to 90.");
+    let whole = (d: unknown, min: number, max: number) => Number.isInteger(d) && (d as number) >= min && (d as number) <= max;
+    if (![...data.retryDays, ...data.reminderDays].every((d) => whole(d, 0, 90))) fail(422, "DAYS_INVALID", "Days must be whole numbers from 0 to 90.");
+    if (!whole(data.finalNoticeDay, 1, 89) || !whole(data.graceDays, 2, 90)) fail(422, "DAYS_INVALID", "The final notice day is 1–89 and the grace period 2–90 days.");
     if (data.finalNoticeDay >= data.graceDays) fail(422, "FINAL_AFTER_GRACE", "The final notice has to go out before access is suspended.");
+    if ([...data.retryDays, ...data.reminderDays].some((d) => d >= data.graceDays))
+      fail(422, "DAYS_AFTER_SUSPEND", `Retries and reminders have to come before day ${data.graceDays}, when access is suspended.`);
     if (!data.channels.length) fail(422, "CHANNEL_REQUIRED", "Choose at least one channel.");
+    let time = /^([01]\d|2[0-3]):[0-5]\d$/;
+    if (!time.test(data.quietHours.from) || !time.test(data.quietHours.to)) fail(422, "QUIET_HOURS_INVALID", "Quiet hours are two times like 21:00 and 09:00.");
+    if (!data.templates.reminder.trim() || !data.templates.finalNotice.trim() || !data.templates.suspended.trim()) fail(422, "TEMPLATE_REQUIRED", "None of the three messages can be empty.");
     Object.assign(dunningSettings, data, {
       retryDays: [...new Set(data.retryDays)].sort((a, b) => a - b),
       reminderDays: [...new Set(data.reminderDays)].sort((a, b) => a - b),
       updatedAt: new Date().toISOString(),
       updatedBy: me ? operatorRef(me) : undefined,
     });
-    log(me, "billing.dunningUpdated", "Changed payment chasing settings");
+    log(me, "billing.dunningUpdated", dunningSettings.enabled ? "Changed payment chasing settings" : "Turned automatic payment chasing off");
     return dunningSettings;
   },
   "POST /operator.billing.promises.create": ({body, me}) => {
@@ -942,6 +920,12 @@ let handlers: Record<string, Handler> = {
       }
       delete reminders[client.id];
     }
+    if (dunningSettings.autoReactivate && client.status === "suspended" && suspendedForNonPayment.has(client.id) && !overdueInvoicesOf(client.id).length) {
+      client.status = "active";
+      client.suspendedReason = undefined;
+      suspendedForNonPayment.delete(client.id);
+      log(undefined, "client.reactivated", `Access restored — ${invoice.number} paid`, client);
+    }
     refresh(client);
     log(me, "payment.recorded", `Recorded ${payment.amount.display} by ${data.method} against ${invoice.number}`, client);
     return payment;
@@ -1100,32 +1084,6 @@ let handlers: Record<string, Handler> = {
     announcement.endsAt = new Date().toISOString();
     log(me, "announcement.ended", `Ended "${announcement.title}"`);
     return announcement;
-  },
-
-  // ---- Saved views ------------------------------------------------------------------------------
-  "GET /operator.views.list": ({me}) => ({views: savedViews.filter((v) => v.shared || v.owner.id === me?.id)}),
-  "POST /operator.views.create": ({body, me}) => {
-    let operator = requireMe(me);
-    let data = body as unknown as T.CreateSavedViewData;
-    if (!data.name?.trim()) fail(422, "NAME_REQUIRED", "Name the view.");
-    let view: T.SavedView = {...data, name: data.name.trim(), id: id("vw"), owner: operatorRef(operator), createdAt: new Date().toISOString()};
-    savedViews.push(view);
-    return view;
-  },
-  "POST /operator.views.update": ({body, me}) => {
-    let view = savedViews.find((v) => v.id === body.id);
-    if (!view) fail(404, "VIEW_NOT_FOUND", "No view with that id.");
-    if (view.owner.id !== me?.id) fail(403, "NOT_OWNER", "Only the person who saved a view can change it.");
-    if (body.pinned !== undefined) view.pinned = Boolean(body.pinned);
-    if (typeof body.name === "string" && body.name.trim()) view.name = body.name.trim();
-    return view;
-  },
-  "POST /operator.views.delete": ({body, me}) => {
-    let view = savedViews.find((v) => v.id === body.id);
-    if (!view) fail(404, "VIEW_NOT_FOUND", "No view with that id.");
-    if (view.owner.id !== me?.id) fail(403, "NOT_OWNER", "Only the person who saved a view can delete it.");
-    savedViews.splice(savedViews.indexOf(view), 1);
-    return {id: view.id};
   },
 
   // ---- Bulk -------------------------------------------------------------------------------------
@@ -1403,28 +1361,6 @@ function requireStepUp(me: T.Operator | undefined) {
   if (!entry || entry.operatorID !== operator.id || entry.expiresAt < Date.now()) fail(428, "STEP_UP_REQUIRED", "Confirm it is you to do this.");
 }
 let supportSessions: T.SupportSession[] = [];
-let savedViews: T.SavedView[] = [
-  {
-    id: id("vw"),
-    name: "At risk on Scale",
-    path: "/clients",
-    search: {plan: "scale", health: "atRisk"},
-    pinned: true,
-    shared: true,
-    owner: operatorRef(operators[0]),
-    createdAt: new Date(Date.now() - 20 * 86400000).toISOString(),
-  },
-  {
-    id: id("vw"),
-    name: "Renewing first",
-    path: "/clients",
-    search: {sort: "renewal", subscriptionStatus: "active"},
-    pinned: true,
-    shared: false,
-    owner: operatorRef(operators[0]),
-    createdAt: new Date(Date.now() - 5 * 86400000).toISOString(),
-  },
-];
 let myNotifications: Record<string, T.MyNotificationSettings> = {};
 let teamNotifications: T.TeamNotificationSettings = {
   telegram: {chatID: "-1001987654321", chatTitle: "Octopos · Support", connected: true},
@@ -1500,12 +1436,25 @@ function settlePromises() {
   }
 }
 
-function scheduleFor(invoice: T.Invoice, client: MockClient, sent: number, promise?: T.PaymentPromise): T.DunningStep[] {
+/** Clients Helm itself suspended for an unpaid invoice — the only ones a payment brings back on its own. */
+let suspendedForNonPayment = new Set(clients.filter((c) => c.status === "suspended" && c.suspendedReason?.startsWith("Unpaid")).map((c) => c.id));
+
+function overdueInvoicesOf(clientID: string) {
+  return invoices.filter((i) => i.clientID === clientID && i.status === "open" && Date.parse(i.dueAt) < Date.now());
+}
+
+/**
+ * The automatic chase, as the server would run it: retries for autopay clients, reminders, the
+ * final notice, and suspension once the grace period is over. Nothing before a promise's day.
+ */
+function scheduleFor(invoice: T.Invoice, client: MockClient, promise?: T.PaymentPromise): T.DunningStep[] {
+  if (!dunningSettings.enabled) return [];
   let due = Date.parse(invoice.dueAt);
   let at = (day: number) => new Date(due + day * 86400000).toISOString();
   let now = Date.now();
   let autopay = client.subscription?.nativeBilling;
-  let paused = promise?.status === "pending";
+  let pausedUntil = promise?.status === "pending" ? Date.parse(promise.promisedFor) : 0;
+  let promisedAt = promise?.status === "pending" ? Date.parse(promise.createdAt) : Infinity;
   let steps: T.DunningStep[] = [
     ...(autopay ? dunningSettings.retryDays.map((day) => ({kind: "retry" as const, day, at: at(day), status: "upcoming" as const})) : []),
     ...dunningSettings.reminderDays.map((day) => ({kind: "reminder" as const, day, at: at(day), status: "upcoming" as const})),
@@ -1513,48 +1462,72 @@ function scheduleFor(invoice: T.Invoice, client: MockClient, sent: number, promi
     ...(dunningSettings.autoSuspend ? [{kind: "suspend" as const, day: dunningSettings.graceDays, at: at(dunningSettings.graceDays), status: "upcoming" as const}] : []),
   ];
   steps.sort((a, b) => a.day - b.day);
-  let remindersLeft = sent;
   for (let step of steps) {
-    if (Date.parse(step.at) > now) {
-      if (paused && Date.parse(step.at) < Date.parse(promise!.promisedFor)) step.status = "paused";
-      continue;
-    }
-    if (step.kind === "reminder" || step.kind === "finalNotice") {
-      step.status = remindersLeft > 0 ? "done" : "skipped";
-      remindersLeft--;
-    } else if (step.kind === "suspend") {
-      step.status = client.status === "suspended" ? "done" : "upcoming";
-    } else step.status = "done";
+    let when = Date.parse(step.at);
+    if (step.kind === "suspend") step.status = client.status === "suspended" ? "done" : pausedUntil > now ? "paused" : "upcoming";
+    else if (when <= now) step.status = when >= promisedAt && when < pausedUntil ? "skipped" : "done";
+    else if (when < pausedUntil) step.status = "paused";
   }
   return steps;
 }
 
-function validHealth(data: T.HealthSettings): T.HealthSettings {
-  let w = data.weights;
-  if ([w.payment, w.activity, w.fleet].some((x) => !Number.isInteger(x) || x < 0 || x > 100) || w.payment + w.activity + w.fleet !== 100)
-    fail(422, "WEIGHTS_INVALID", "The three weights are whole percents that add up to 100.");
-  if (!(data.thresholds.good > data.thresholds.watch && data.thresholds.watch > 0 && data.thresholds.good <= 100))
-    fail(422, "THRESHOLDS_INVALID", "Healthy must start above Watch, and both between 1 and 100.");
-  return {weights: {...w}, thresholds: {...data.thresholds}};
+function finalNoticeAt(invoice: T.Invoice, client: MockClient, schedule: T.DunningStep[]) {
+  let automatic = schedule.find((step) => step.kind === "finalNotice" && step.status === "done")?.at;
+  let manual = reminders[client.id]?.finalAt;
+  return latest(automatic, manual && Date.parse(manual) >= Date.parse(invoice.dueAt) ? manual : undefined);
 }
 
-function previewHealth(settings: T.HealthSettings): T.HealthPreview {
-  let distribution: Record<T.HealthGrade, number> = {good: 0, watch: 0, atRisk: 0};
-  let changes: T.HealthPreview["changes"] = [];
-  let order: Record<T.HealthGrade, number> = {atRisk: 0, watch: 1, good: 2};
-  for (let c of clients.filter((c) => c.status !== "churned")) {
-    let score = scoreWith(c.health, settings);
-    let next = grade(score, settings);
-    distribution[next]++;
-    if (next !== c.health.grade) changes.push({clientID: c.id, clientName: c.name, from: c.health.grade, to: next, score});
-  }
-  changes.sort((a, b) => order[a.to] - order[b.to] || a.score - b.score);
-  let churned = clients.filter((c) => c.status === "churned" || c.status === "suspended");
-  let retained = clients.filter((c) => c.status === "active");
-  let avg = (list: MockClient[], f: T.HealthFactor) => Math.round(list.reduce((sum, c) => sum + c.health[f], 0) / (list.length || 1));
-  let signals = (["payment", "activity", "fleet"] as T.HealthFactor[]).map((factor) => ({factor, churnedAvg: avg(churned, factor), retainedAvg: avg(retained, factor)}));
-  return {distribution, changes: changes.slice(0, 12), signals};
+function latest(a?: string, b?: string) {
+  if (!a) return b;
+  if (!b) return a;
+  return Date.parse(a) > Date.parse(b) ? a : b;
 }
+
+/** One answer to "what now" for an overdue invoice, whether chasing runs on its own or not. */
+function nextStepFor(invoice: T.Invoice, client: MockClient, schedule: T.DunningStep[], promise?: T.PaymentPromise): Pick<T.OverdueAccount, "nextStep" | "nextStepAt" | "manual"> {
+  let now = new Date().toISOString();
+  let graceAt = new Date(Date.parse(invoice.dueAt) + dunningSettings.graceDays * 86400000).toISOString();
+  if (client.status === "suspended") return {nextStep: "suspended", nextStepAt: now, manual: false};
+  if (promise?.status === "pending") return {nextStep: "waitForPromise", nextStepAt: promise.promisedFor, manual: false};
+  let finalAt = finalNoticeAt(invoice, client, schedule);
+  if (dunningSettings.enabled) {
+    let upcoming = schedule.find((step) => step.status === "upcoming" || step.status === "paused");
+    if (upcoming) {
+      let kinds = {retry: "retry", reminder: "remind", finalNotice: "finalNotice", suspend: "suspend"} as const;
+      return {nextStep: kinds[upcoming.kind], nextStepAt: upcoming.at, manual: false};
+    }
+    // Everything automatic has run and suspension is left to people.
+    return {nextStep: "suspend", nextStepAt: graceAt, manual: true};
+  }
+  let days = (Date.now() - Date.parse(invoice.dueAt)) / 86400000;
+  if (!finalAt && days >= dunningSettings.finalNoticeDay) return {nextStep: "finalNotice", nextStepAt: now, manual: true};
+  if (finalAt) return {nextStep: "suspend", nextStepAt: latest(graceAt, finalAt)!, manual: true};
+  let nextReminder = dunningSettings.reminderDays.map((day) => new Date(Date.parse(invoice.dueAt) + day * 86400000).toISOString()).find((at) => at > (reminders[client.id]?.lastAt ?? invoice.dueAt));
+  return {nextStep: "remind", nextStepAt: nextReminder && nextReminder > now ? nextReminder : now, manual: true};
+}
+
+/**
+ * What the server's chasing job does on its own, run whenever someone looks: suspends accounts past
+ * the grace period (never before the final notice, never while a promise is pending).
+ */
+function runChasing() {
+  settlePromises();
+  if (!dunningSettings.enabled || !dunningSettings.autoSuspend) return;
+  for (let invoice of invoices.filter((i) => i.status === "open" && Date.parse(i.dueAt) < Date.now())) {
+    let client = findClient(invoice.clientID);
+    if (client.status !== "active") continue;
+    let promise = promises.find((p) => p.invoiceID === invoice.id && p.status === "pending");
+    let schedule = scheduleFor(invoice, client, promise);
+    let suspend = schedule.find((step) => step.kind === "suspend");
+    if (!suspend || suspend.status !== "upcoming" || Date.parse(suspend.at) > Date.now() || !finalNoticeAt(invoice, client, schedule)) continue;
+    client.status = "suspended";
+    client.suspendedReason = `Unpaid ${invoice.number}: ${dunningSettings.graceDays} days past due after the final notice.`;
+    suspendedForNonPayment.add(client.id);
+    refresh(client);
+    log(undefined, "client.suspended", client.suspendedReason, client);
+  }
+}
+runChasing();
 
 /** "2026-11" for a local date. toISOString would shift the 1st of the month into the previous one east of UTC. */
 function monthKey(d: Date) {

@@ -6,7 +6,6 @@ import {ReceiptText, Search} from "lucide-react";
 import {useTranslation} from "react-i18next";
 import {listInvoices, listInvoicesOptions, type Invoice, type InvoiceStatus} from "@/api";
 import {ExportButton} from "@/components/export-button";
-import {SaveViewButton} from "@/components/saved-views";
 import type {Column} from "@/lib/csv";
 
 let INVOICE_COLUMNS: Column<Invoice>[] = [
@@ -62,7 +61,6 @@ function Invoices() {
     <div className="flex flex-col gap-8 px-4">
       <PageHeader title={t("billing:invoices", {defaultValue: "Invoices"})}>
         <ExportButton name="invoices" load={() => listInvoices({query: {...search, page: 1, pageSize: 1000}}).then((page) => page.items)} columns={INVOICE_COLUMNS} />
-        <SaveViewButton path="/billing/invoices" search={search} />
       </PageHeader>
       <div className="flex flex-col gap-3 sm:flex-row">
         <Input

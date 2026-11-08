@@ -3,13 +3,15 @@ import {useSuspenseQuery} from "@tanstack/react-query";
 import {createFileRoute, Link, redirect} from "@tanstack/react-router";
 import {Button, Tag} from "@yeahuz/kdsx-react";
 import {useTranslation} from "react-i18next";
-import {getInvoiceOptions, getClientOptions} from "@/api";
+import {getInvoiceOptions, getClientOptions, type Invoice} from "@/api";
 import {DetailPageSkeleton} from "@/components/skeletons";
 import {Field, Fields, Section} from "@/components/field";
 import {PayLinkButtons, PromiseDialog, RecordPaymentDialog, SendReminderDialog, VoidInvoiceDialog} from "@/components/client-actions";
 import {invoiceStatusColor, invoiceStatusLabel, tagColor, vendorLabel} from "@/lib/status";
 import {formatDate} from "@/lib/format";
 import {can} from "@/permission";
+
+let SOURCE: Record<Invoice["source"], string> = {subscriptionRenewal: "Renewal", subscriptionUpgrade: "Plan upgrade", addonChange: "Add-on change", usage: "Usage"};
 
 export let Route = createFileRoute("/_auth/billing/invoices/$id")({
   beforeLoad: ({context}) => {
@@ -92,7 +94,7 @@ function InvoicePage() {
           <Field label={t("billing:issuedAt", {defaultValue: "Issued"})} value={formatDate(invoice.issuedAt)} />
           <Field label={t("billing:dueAt", {defaultValue: "Due"})} value={formatDate(invoice.dueAt)} />
           <Field label={t("billing:paidAt", {defaultValue: "Paid"})} value={formatDate(invoice.paidAt)} />
-          <Field label={t("billing:source", {defaultValue: "Source"})} value={t(`billing:invoiceSource.${invoice.source}`, {defaultValue: invoice.source})} />
+          <Field label={t("billing:source", {defaultValue: "Source"})} value={t(`billing:invoiceSource.${invoice.source}`, {defaultValue: SOURCE[invoice.source]})} />
           <Field label={t("billing:total", {defaultValue: "Total"})} value={invoice.total.display} />
           <Field
             label={t("billing:amountDue", {defaultValue: "Amount due"})}

@@ -65,7 +65,7 @@ function DetailsForm() {
           <Textarea id="description" name="description" rows={3} defaultValue={role.description} />
         </div>
       </div>
-      <FixedFooter className="px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:static sm:px-0">
+      <FixedFooter className="z-20 px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:static sm:px-0">
         <Button size="lg" color="brand" className="w-full" variant="fill" disabled={isUpdating} loading={isUpdating}>
           {t("common:saveChanges", {defaultValue: "Save changes"})}
         </Button>

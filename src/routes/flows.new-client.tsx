@@ -198,7 +198,7 @@ function NewClient() {
             </FormField>
           </div>
         </div>
-        <FixedFooter className="px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:static sm:px-0">
+        <FixedFooter className="z-20 px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:static sm:px-0">
           <Button size="lg" className="w-full" disabled={isPending} loading={isPending}>
             {t("clients:createClient", {defaultValue: "Create client"})}
           </Button>

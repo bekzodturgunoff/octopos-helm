@@ -13,7 +13,6 @@ import {ApiError, getSignedInOperatorOptions, getTaskCountsOptions, SignedInOper
 import {Can, CanAny} from "@/permission";
 import {getSession} from "@/constants";
 import {ActiveSessionBanner} from "@/components/support-session";
-import {SavedViewsNav} from "@/components/saved-views";
 import {Shortcuts} from "@/components/shortcuts";
 
 export let Route = createFileRoute("/_auth")({
@@ -165,7 +164,6 @@ function Layout() {
               </li>
             </CanAny>
           </ul>
-          <SavedViewsNav user={user} />
         </nav>
         {mock ? (
           <div className="border-border-secondary text-on-surface-secondary mb-4 rounded-lg border p-3 text-xs">
@@ -228,7 +226,8 @@ function Layout() {
         <div className="px-4">
           <ActiveSessionBanner user={user} />
         </div>
-        <div className="pb-[calc(var(--fixed-footer-height,calc(4.25rem+env(safe-area-inset-bottom,0px)))+1.5rem)] md:pb-16">
+        {/* Room for whichever is taller on a phone: the tab bar, or a page's Save bar over it. */}
+        <div className="pb-[calc(max(var(--fixed-footer-height,0px),4.25rem+env(safe-area-inset-bottom,0px))+1.5rem)] md:pb-16">
           <Outlet />
         </div>
         {/* The dash's bar, class for class. */}

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as R403RouteImport } from './routes/403'
 import { Route as AuthRouteImport } from './routes/_auth'
+import { Route as FlowsRouteImport } from './routes/flows'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthIndexRouteImport } from './routes/_auth.index'
 import { Route as AuthAnnouncementsRouteImport } from './routes/_auth.announcements'
@@ -20,7 +21,6 @@ import { Route as FlowsNewClientRouteImport } from './routes/flows.new-client'
 import { Route as FlowsNewRoleRouteImport } from './routes/flows.new-role'
 import { Route as AuthAdministrationIndexRouteImport } from './routes/_auth.administration.index'
 import { Route as AuthAdministrationActivityRouteImport } from './routes/_auth.administration.activity'
-import { Route as AuthAdministrationHealthScoreRouteImport } from './routes/_auth.administration.health-score'
 import { Route as AuthAdministrationNotificationsRouteImport } from './routes/_auth.administration.notifications'
 import { Route as AuthAdministrationTeamRouteImport } from './routes/_auth.administration.team'
 import { Route as AuthBillingIndexRouteImport } from './routes/_auth.billing.index'
@@ -60,6 +60,11 @@ const AuthRoute = AuthRouteImport.update({
   id: '/_auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FlowsRoute = FlowsRouteImport.update({
+  id: '/flows',
+  path: '/flows',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -86,14 +91,14 @@ const AuthTasksRoute = AuthTasksRouteImport.update({
   getParentRoute: () => AuthRoute,
 } as any)
 const FlowsNewClientRoute = FlowsNewClientRouteImport.update({
-  id: '/flows/new-client',
-  path: '/flows/new-client',
-  getParentRoute: () => rootRouteImport,
+  id: '/new-client',
+  path: '/new-client',
+  getParentRoute: () => FlowsRoute,
 } as any)
 const FlowsNewRoleRoute = FlowsNewRoleRouteImport.update({
-  id: '/flows/new-role',
-  path: '/flows/new-role',
-  getParentRoute: () => rootRouteImport,
+  id: '/new-role',
+  path: '/new-role',
+  getParentRoute: () => FlowsRoute,
 } as any)
 const AuthAdministrationIndexRoute = AuthAdministrationIndexRouteImport.update({
   id: '/administration/',
@@ -104,12 +109,6 @@ const AuthAdministrationActivityRoute =
   AuthAdministrationActivityRouteImport.update({
     id: '/administration/activity',
     path: '/administration/activity',
-    getParentRoute: () => AuthRoute,
-  } as any)
-const AuthAdministrationHealthScoreRoute =
-  AuthAdministrationHealthScoreRouteImport.update({
-    id: '/administration/health-score',
-    path: '/administration/health-score',
     getParentRoute: () => AuthRoute,
   } as any)
 const AuthAdministrationNotificationsRoute =
@@ -270,6 +269,7 @@ const AuthAdministrationRolesIdPermissionsRoute =
 export interface FileRoutesByFullPath {
   '/403': typeof R403Route
   '/': typeof AuthIndexRoute
+  '/flows': typeof FlowsRouteWithChildren
   '/login': typeof LoginRoute
   '/announcements': typeof AuthAnnouncementsRoute
   '/reports': typeof AuthReportsRoute
@@ -277,7 +277,6 @@ export interface FileRoutesByFullPath {
   '/flows/new-client': typeof FlowsNewClientRoute
   '/flows/new-role': typeof FlowsNewRoleRouteWithChildren
   '/administration/activity': typeof AuthAdministrationActivityRoute
-  '/administration/health-score': typeof AuthAdministrationHealthScoreRoute
   '/administration/notifications': typeof AuthAdministrationNotificationsRoute
   '/administration/team': typeof AuthAdministrationTeamRoute
   '/billing/overdue': typeof AuthBillingOverdueRoute
@@ -311,6 +310,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/403': typeof R403Route
+  '/flows': typeof FlowsRouteWithChildren
   '/login': typeof LoginRoute
   '/announcements': typeof AuthAnnouncementsRoute
   '/reports': typeof AuthReportsRoute
@@ -318,7 +318,6 @@ export interface FileRoutesByTo {
   '/flows/new-client': typeof FlowsNewClientRoute
   '/': typeof AuthIndexRoute
   '/administration/activity': typeof AuthAdministrationActivityRoute
-  '/administration/health-score': typeof AuthAdministrationHealthScoreRoute
   '/administration/notifications': typeof AuthAdministrationNotificationsRoute
   '/administration/team': typeof AuthAdministrationTeamRoute
   '/billing/overdue': typeof AuthBillingOverdueRoute
@@ -354,6 +353,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/403': typeof R403Route
   '/_auth': typeof AuthRouteWithChildren
+  '/flows': typeof FlowsRouteWithChildren
   '/login': typeof LoginRoute
   '/_auth/announcements': typeof AuthAnnouncementsRoute
   '/_auth/reports': typeof AuthReportsRoute
@@ -362,7 +362,6 @@ export interface FileRoutesById {
   '/flows/new-role': typeof FlowsNewRoleRouteWithChildren
   '/_auth/': typeof AuthIndexRoute
   '/_auth/administration/activity': typeof AuthAdministrationActivityRoute
-  '/_auth/administration/health-score': typeof AuthAdministrationHealthScoreRoute
   '/_auth/administration/notifications': typeof AuthAdministrationNotificationsRoute
   '/_auth/administration/team': typeof AuthAdministrationTeamRoute
   '/_auth/billing/overdue': typeof AuthBillingOverdueRoute
@@ -399,6 +398,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/403'
     | '/'
+    | '/flows'
     | '/login'
     | '/announcements'
     | '/reports'
@@ -406,7 +406,6 @@ export interface FileRouteTypes {
     | '/flows/new-client'
     | '/flows/new-role'
     | '/administration/activity'
-    | '/administration/health-score'
     | '/administration/notifications'
     | '/administration/team'
     | '/billing/overdue'
@@ -440,6 +439,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/403'
+    | '/flows'
     | '/login'
     | '/announcements'
     | '/reports'
@@ -447,7 +447,6 @@ export interface FileRouteTypes {
     | '/flows/new-client'
     | '/'
     | '/administration/activity'
-    | '/administration/health-score'
     | '/administration/notifications'
     | '/administration/team'
     | '/billing/overdue'
@@ -482,6 +481,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/403'
     | '/_auth'
+    | '/flows'
     | '/login'
     | '/_auth/announcements'
     | '/_auth/reports'
@@ -490,7 +490,6 @@ export interface FileRouteTypes {
     | '/flows/new-role'
     | '/_auth/'
     | '/_auth/administration/activity'
-    | '/_auth/administration/health-score'
     | '/_auth/administration/notifications'
     | '/_auth/administration/team'
     | '/_auth/billing/overdue'
@@ -526,9 +525,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   R403Route: typeof R403Route
   AuthRoute: typeof AuthRouteWithChildren
+  FlowsRoute: typeof FlowsRouteWithChildren
   LoginRoute: typeof LoginRoute
-  FlowsNewClientRoute: typeof FlowsNewClientRoute
-  FlowsNewRoleRoute: typeof FlowsNewRoleRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -545,6 +543,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/flows': {
+      id: '/flows'
+      path: '/flows'
+      fullPath: '/flows'
+      preLoaderRoute: typeof FlowsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -584,17 +589,17 @@ declare module '@tanstack/react-router' {
     }
     '/flows/new-client': {
       id: '/flows/new-client'
-      path: '/flows/new-client'
+      path: '/new-client'
       fullPath: '/flows/new-client'
       preLoaderRoute: typeof FlowsNewClientRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FlowsRoute
     }
     '/flows/new-role': {
       id: '/flows/new-role'
-      path: '/flows/new-role'
+      path: '/new-role'
       fullPath: '/flows/new-role'
       preLoaderRoute: typeof FlowsNewRoleRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof FlowsRoute
     }
     '/_auth/administration/': {
       id: '/_auth/administration/'
@@ -608,13 +613,6 @@ declare module '@tanstack/react-router' {
       path: '/administration/activity'
       fullPath: '/administration/activity'
       preLoaderRoute: typeof AuthAdministrationActivityRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/administration/health-score': {
-      id: '/_auth/administration/health-score'
-      path: '/administration/health-score'
-      fullPath: '/administration/health-score'
-      preLoaderRoute: typeof AuthAdministrationHealthScoreRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_auth/administration/notifications': {
@@ -829,7 +827,6 @@ interface AuthRouteChildren {
   AuthTasksRoute: typeof AuthTasksRoute
   AuthIndexRoute: typeof AuthIndexRoute
   AuthAdministrationActivityRoute: typeof AuthAdministrationActivityRoute
-  AuthAdministrationHealthScoreRoute: typeof AuthAdministrationHealthScoreRoute
   AuthAdministrationNotificationsRoute: typeof AuthAdministrationNotificationsRoute
   AuthAdministrationTeamRoute: typeof AuthAdministrationTeamRoute
   AuthBillingOverdueRoute: typeof AuthBillingOverdueRoute
@@ -865,7 +862,6 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthTasksRoute: AuthTasksRoute,
   AuthIndexRoute: AuthIndexRoute,
   AuthAdministrationActivityRoute: AuthAdministrationActivityRoute,
-  AuthAdministrationHealthScoreRoute: AuthAdministrationHealthScoreRoute,
   AuthAdministrationNotificationsRoute: AuthAdministrationNotificationsRoute,
   AuthAdministrationTeamRoute: AuthAdministrationTeamRoute,
   AuthBillingOverdueRoute: AuthBillingOverdueRoute,
@@ -915,12 +911,23 @@ const FlowsNewRoleRouteWithChildren = FlowsNewRoleRoute._addFileChildren(
   FlowsNewRoleRouteChildren,
 )
 
+interface FlowsRouteChildren {
+  FlowsNewClientRoute: typeof FlowsNewClientRoute
+  FlowsNewRoleRoute: typeof FlowsNewRoleRouteWithChildren
+}
+
+const FlowsRouteChildren: FlowsRouteChildren = {
+  FlowsNewClientRoute: FlowsNewClientRoute,
+  FlowsNewRoleRoute: FlowsNewRoleRouteWithChildren,
+}
+
+const FlowsRouteWithChildren = FlowsRoute._addFileChildren(FlowsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   R403Route: R403Route,
   AuthRoute: AuthRouteWithChildren,
+  FlowsRoute: FlowsRouteWithChildren,
   LoginRoute: LoginRoute,
-  FlowsNewClientRoute: FlowsNewClientRoute,
-  FlowsNewRoleRoute: FlowsNewRoleRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

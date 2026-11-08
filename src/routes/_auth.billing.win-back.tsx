@@ -66,7 +66,7 @@ function Candidates({days}: {days: number}) {
 
   return (
     <div className="flex flex-col gap-8">
-      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 [&>li:last-child:nth-child(odd)]:col-span-2 sm:[&>li:last-child:nth-child(odd)]:col-span-1">
         <StatCard label={t("billing:churnedClients", {defaultValue: "Left"})} value={String(data.candidates.length)} />
         <StatCard label={t("billing:revenueLost", {defaultValue: "Monthly revenue lost"})} value={uzs(lost).display} />
         <StatCard label={t("billing:offersSent", {defaultValue: "Offers sent"})} value={`${offered} / ${data.candidates.length}`} />
@@ -84,7 +84,7 @@ function Candidates({days}: {days: number}) {
                   {candidate.owner.phone ? ` · ${candidate.owner.phone}` : ""} · {candidate.lastPlan?.name ?? "—"}
                 </span>
               </div>
-              <div className="flex flex-col items-end text-sm">
+              <div className="flex flex-col text-sm sm:items-end">
                 <span>{t("billing:leftWhen", {defaultValue: "Left {{when}}", when: formatRelative(candidate.churnedAt)})}</span>
                 <span className="text-on-surface-secondary">
                   {t("billing:tenure", {defaultValue: "{{months}} months · paid {{ltv}}", months: candidate.monthsActive, ltv: candidate.lifetimeValue.display})}

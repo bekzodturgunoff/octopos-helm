@@ -85,7 +85,7 @@ function Overview() {
 function MetricsSkeleton() {
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {Array.from({length: 4}).map((_, i) => (
           <Skeleton key={i} className="h-28 rounded-xl" />
         ))}
@@ -179,7 +179,7 @@ function Metrics() {
 
   return (
     <div className="flex flex-col gap-4">
-      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 [&>li:last-child:nth-child(odd)]:col-span-2 sm:[&>li:last-child:nth-child(odd)]:col-span-1">
         <StatCard
           label={t("billing:mrr", {defaultValue: "Monthly recurring revenue"})}
           value={data.mrr.display}
@@ -243,7 +243,7 @@ function Metrics() {
           </ul>
         </ChartCard>
       </div>
-      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 [&>li:last-child:nth-child(odd)]:col-span-2 sm:[&>li:last-child:nth-child(odd)]:col-span-1">
         <StatCard
           label={t("clients:onboardingNow", {defaultValue: "Onboarding"})}
           value={t("clients:clientCount", {defaultValue: "{{count}} clients", count: data.onboardingClients})}
@@ -313,10 +313,10 @@ function Attention() {
                 <Icon size={18} />
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate">
+                <span className="line-clamp-2 sm:truncate">
                   <span className="font-medium">{item.clientName}</span> <span className="text-on-surface-secondary">·</span> {item.title}
                 </span>
-                <span className="text-on-surface-secondary truncate text-sm">{item.detail}</span>
+                <span className="text-on-surface-secondary line-clamp-2 text-sm sm:truncate">{item.detail}</span>
               </span>
               <ChevronRight size={18} className="text-on-surface-accent shrink-0 opacity-0 group-hover:opacity-100" />
             </Link>

@@ -130,7 +130,7 @@ function NodeList({view, health, version}: {view: View; health?: FleetHealth; ve
               >
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate font-medium">{node.tenantName}</span>
-                  <span className="text-on-surface-secondary truncate text-sm">
+                  <span className="text-on-surface-secondary line-clamp-2 text-sm sm:truncate">
                     {fleetNodeLabel(node)} · {node.location?.name ?? "—"}
                   </span>
                 </span>

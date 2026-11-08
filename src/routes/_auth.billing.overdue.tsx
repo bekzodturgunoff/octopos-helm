@@ -68,23 +68,44 @@ function ChasingStatus() {
   );
 }
 
+/** Manual steps read as something to do; automatic ones as what Helm will do and when. */
 function stepTag(t: ReturnType<typeof useTranslation>["t"], account: OverdueAccount) {
+  let when = formatDate(account.nextStepAt).replace(/, \d{4}$/, "");
+  let due = Date.parse(account.nextStepAt) <= Date.now();
   switch (account.nextStep) {
+    case "suspended":
+      return <Tag color="red">{t("billing:stepSuspended", {defaultValue: "Suspended"})}</Tag>;
     case "waitForPromise":
       return <Tag color="blue">{t("billing:stepWait", {defaultValue: "Promised · waiting"})}</Tag>;
+    case "retry":
+      return <Tag color="neutral">{t("billing:stepAutoRetry", {defaultValue: "Card retry {{when}}", when})}</Tag>;
     case "remind":
-      return <Tag color="yellow">{t("billing:stepRemind", {defaultValue: "Send reminder"})}</Tag>;
+      return account.manual ? (
+        <Tag color="yellow">{due ? t("billing:stepRemind", {defaultValue: "Send reminder"}) : t("billing:stepRemindOn", {defaultValue: "Remind {{when}}", when})}</Tag>
+      ) : (
+        <Tag color="neutral">{t("billing:stepAutoRemind", {defaultValue: "Auto reminder {{when}}", when})}</Tag>
+      );
     case "finalNotice":
-      return <Tag color="red">{t("billing:stepFinal", {defaultValue: "Final notice"})}</Tag>;
+      return account.manual ? (
+        <Tag color="red">{t("billing:stepFinal", {defaultValue: "Send final notice"})}</Tag>
+      ) : (
+        <Tag color="yellow">{t("billing:stepAutoFinal", {defaultValue: "Final notice {{when}}", when})}</Tag>
+      );
     default:
-      return <Tag color="red">{t("billing:stepSuspend", {defaultValue: "Suspend"})}</Tag>;
+      if (!due) return <Tag color="yellow">{t("billing:stepSuspendOn", {defaultValue: "Suspends {{when}}", when})}</Tag>;
+      return <Tag color="red">{account.manual ? t("billing:stepSuspend", {defaultValue: "Ready to suspend"}) : t("billing:stepSuspending", {defaultValue: "Suspending today"})}</Tag>;
   }
+}
+
+function readyToSuspend(account: OverdueAccount) {
+  return account.nextStep === "suspend" && account.manual && Date.parse(account.nextStepAt) <= Date.now();
 }
 
 function Queue() {
   let {t} = useTranslation();
   let {user} = Route.useRouteContext();
   let {data} = useSuspenseQuery(listOverdueAccountsOptions());
+  let {data: settings} = useQuery(getDunningSettingsOptions());
   let writes = can(user, "billing.write");
 
   if (!data.accounts.length) {
@@ -99,23 +120,32 @@ function Queue() {
 
   let currency = data.accounts[0].invoice.amountDue.currency;
   let total = data.accounts.reduce((sum, a) => sum + a.invoice.amountDue.majorAmount, 0);
-  let toSuspend = data.accounts.filter((a) => a.nextStep === "suspend").length;
-  let remindable = data.accounts.filter((a) => a.nextStep !== "waitForPromise");
+  let toSuspend = data.accounts.filter(readyToSuspend).length;
+  let suspended = data.accounts.filter((a) => a.nextStep === "suspended").length;
+  let remindable = data.accounts.filter((a) => a.nextStep !== "waitForPromise" && a.nextStep !== "suspended");
 
   return (
     <div className="flex flex-col gap-8">
-      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 [&>li:last-child:nth-child(odd)]:col-span-2 sm:[&>li:last-child:nth-child(odd)]:col-span-1">
         <StatCard
           label={t("billing:owed", {defaultValue: "Owed"})}
           value={uzs(total, currency).display}
           hint={t("billing:accountsCount", {defaultValue: "{{count}} accounts", count: data.accounts.length})}
         />
         <StatCard label={t("billing:averageDaysLate", {defaultValue: "Average days late"})} value={String(Math.round(data.accounts.reduce((s, a) => s + a.daysOverdue, 0) / data.accounts.length))} />
-        <StatCard
-          label={t("billing:readyToSuspend", {defaultValue: "Ready to suspend"})}
-          value={String(toSuspend)}
-          hint={t("billing:readyToSuspendHint", {defaultValue: "Past 21 days or three reminders"})}
-        />
+        {settings?.enabled && settings.autoSuspend ? (
+          <StatCard
+            label={t("billing:suspendedUnpaid", {defaultValue: "Suspended"})}
+            value={String(suspended)}
+            hint={t("billing:suspendedUnpaidHint", {defaultValue: "Automatically, {{days}} days past due and after the final notice", days: settings.graceDays})}
+          />
+        ) : (
+          <StatCard
+            label={t("billing:readyToSuspend", {defaultValue: "Ready to suspend"})}
+            value={String(toSuspend)}
+            hint={t("billing:readyToSuspendDays", {defaultValue: "Over {{days}} days past due, final notice sent", days: settings?.graceDays ?? 21})}
+          />
+        )}
       </ul>
       {writes && remindable.length > 1 ? <RemindAll accounts={remindable} /> : null}
       <ul className="flex flex-col gap-3">
@@ -150,13 +180,13 @@ function Queue() {
                 {account.invoice.number} · {t("billing:dueOn", {defaultValue: "due {{date}}", date: formatDate(account.invoice.dueAt)})}
               </span>
               <span className="text-on-surface-secondary">
-                {t("billing:remindersSent", {defaultValue: "{{count}} reminders", count: account.remindersSent})}
+                {t("billing:reminderCount", {defaultValue: "{{count}} reminders", count: account.remindersSent})}
                 {account.lastReminderAt ? ` · ${t("billing:lastOne", {defaultValue: "last {{when}}", when: formatRelative(account.lastReminderAt)})}` : null}
               </span>
               <HealthBadge health={account.health} className="ml-auto" />
             </div>
             {account.promise ? <PromiseLine account={account} writes={writes} /> : null}
-            <DunningTimeline steps={account.schedule} />
+            {account.schedule.length ? <DunningTimeline steps={account.schedule} /> : null}
             {writes ? (
               <div className="flex flex-wrap gap-2">
                 <RecordPaymentDialog
@@ -177,18 +207,20 @@ function Queue() {
                     }
                   />
                 ) : null}
-                <SendReminderDialog
-                  clientID={account.clientID}
-                  invoice={account.invoice}
-                  ownerName={account.owner.name}
-                  clientName={account.clientName}
-                  kind={account.nextStep === "finalNotice" || account.nextStep === "suspend" ? "finalNotice" : "reminder"}
-                  trigger={
-                    <Button size="sm" color="neutral">
-                      {account.nextStep === "finalNotice" ? t("billing:sendFinal", {defaultValue: "Send final notice"}) : t("billing:remind", {defaultValue: "Remind"})}
-                    </Button>
-                  }
-                />
+                {account.nextStep !== "suspended" ? (
+                  <SendReminderDialog
+                    clientID={account.clientID}
+                    invoice={account.invoice}
+                    ownerName={account.owner.name}
+                    clientName={account.clientName}
+                    kind={account.nextStep === "finalNotice" && account.manual ? "finalNotice" : "reminder"}
+                    trigger={
+                      <Button size="sm" color="neutral">
+                        {account.nextStep === "finalNotice" && account.manual ? t("billing:sendFinal", {defaultValue: "Send final notice"}) : t("billing:remind", {defaultValue: "Remind"})}
+                      </Button>
+                    }
+                  />
+                ) : null}
                 <ExtendDialog
                   clientID={account.clientID}
                   trialing={false}
@@ -198,7 +230,7 @@ function Queue() {
                     </Button>
                   }
                 />
-                {account.nextStep === "suspend" && can(user, "client.write") ? (
+                {readyToSuspend(account) && can(user, "client.write") ? (
                   <SuspendDialog
                     clientID={account.clientID}
                     clientName={account.clientName}
@@ -246,9 +278,12 @@ function PromiseLine({account, writes}: {account: OverdueAccount; writes: boolea
 function RemindAll({accounts}: {accounts: OverdueAccount[]}) {
   let {t} = useTranslation();
   let {mutationFn} = bulkSendRemindersMutation();
+  let {data: settings} = useQuery(getDunningSettingsOptions());
   let [selected, setSelected] = useState<Set<string>>(() => new Set(accounts.map((a) => a.invoice.id)));
   return (
     <FormDialog
+      // Opening it again starts from everyone currently on the list, not last time's ticks.
+      onOpenChange={(open) => open && setSelected(new Set(accounts.map((a) => a.invoice.id)))}
       trigger={
         <Button size="sm" color="neutral" className="max-w-fit">
           {t("billing:remindAll", {defaultValue: "Remind {{count}} at once", count: accounts.length})}
@@ -258,6 +293,7 @@ function RemindAll({accounts}: {accounts: OverdueAccount[]}) {
       description={t("billing:remindAllHint", {defaultValue: "Each gets the reminder template with their own name, amount and pay link. Accounts with a promise to pay are not listed."})}
       action={t("billing:sendN", {defaultValue: "Send {{count}}", count: selected.size})}
       success={t("billing:remindersSent", {defaultValue: "Reminders sent"})}
+      disabled={!selected.size}
       onSubmit={(form) =>
         mutationFn({
           body: {
@@ -294,14 +330,14 @@ function RemindAll({accounts}: {accounts: OverdueAccount[]}) {
         ))}
       </ul>
       <FormField label={t("billing:channel", {defaultValue: "Send by"})} htmlFor="channel">
-        <Select id="channel" name="channel" defaultValue="telegram">
+        <Select id="channel" name="channel" defaultValue={settings?.channels[0] ?? "telegram"} key={settings ? "s" : "l"}>
           <option value="telegram">Telegram</option>
           <option value="sms">SMS</option>
           <option value="email">Email</option>
         </Select>
       </FormField>
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="includePayLink" defaultChecked className="accent-accent" />
+        <input type="checkbox" name="includePayLink" defaultChecked={settings?.includePayLink ?? true} key={settings ? "s" : "l"} className="accent-accent" />
         {t("billing:includePayLinkShort", {defaultValue: "Include a pay link"})}
       </label>
     </FormDialog>

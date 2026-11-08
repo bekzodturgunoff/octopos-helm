@@ -208,7 +208,7 @@ export function PermissionsEditor({
         )}
       </div>
 
-      <FixedFooter className="px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:static sm:px-0">
+      <FixedFooter className="z-20 px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:static sm:px-0">
         <Button size="lg" color="brand" className="w-full" variant="fill" disabled={pending || permissionCount === 0} loading={pending}>
           {submitLabel}
         </Button>

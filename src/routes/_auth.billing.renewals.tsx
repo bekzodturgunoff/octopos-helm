@@ -85,7 +85,7 @@ function RenewalList({days}: {days: number}) {
 
   return (
     <div className="flex flex-col gap-8">
-      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 [&>li:last-child:nth-child(odd)]:col-span-2 sm:[&>li:last-child:nth-child(odd)]:col-span-1">
         <StatCard
           label={t("billing:expected", {defaultValue: "Expected"})}
           value={uzs(total, currency).display}
@@ -129,7 +129,7 @@ function RenewalList({days}: {days: number}) {
                 <Link to="/clients/$id" params={{id: renewal.clientID}} search={{tab: "billing"}} className="hover:bg-surface-300 group flex items-center justify-between gap-4 rounded-xl px-2 py-3">
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate font-medium">{renewal.clientName}</span>
-                    <span className="text-on-surface-secondary truncate text-sm">
+                    <span className="text-on-surface-secondary line-clamp-2 text-sm sm:truncate">
                       {renewal.plan.name} · {renewal.owner.name} {renewal.owner.phone ? `· ${renewal.owner.phone}` : ""}
                     </span>
                   </span>

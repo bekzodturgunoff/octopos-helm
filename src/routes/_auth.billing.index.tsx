@@ -93,7 +93,7 @@ function Summary() {
   let {t} = useTranslation();
   let {data} = useSuspenseQuery(getOverviewMetricsOptions());
   return (
-    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 [&>li:last-child:nth-child(odd)]:col-span-2 sm:[&>li:last-child:nth-child(odd)]:col-span-1">
       <StatCard label={t("billing:mrr", {defaultValue: "MRR"})} value={data.mrr.display} />
       <StatCard
         label={t("billing:pastDue", {defaultValue: "Past due"})}

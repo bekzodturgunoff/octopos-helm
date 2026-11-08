@@ -20,7 +20,6 @@ tags:
   - name: OperatorAnnouncements
   - name: OperatorTeam
   - name: OperatorAccess
-  - name: OperatorViews
   - name: OperatorNotifications
 paths:
   /operator.auth.signIn:
@@ -1115,7 +1114,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
       x-capability: billing.write
-      description: "The server runs the schedule: card retries (autopay), reminders, final notice, auto-suspend after graceDays, auto-reactivate on payment, no messages in quiet hours. Hard declines stop retries. 422 FINAL_AFTER_GRACE / DAYS_INVALID / CHANNEL_REQUIRED."
+      description: "The server runs the schedule: card retries (autopay), reminders, final notice, auto-suspend after graceDays, auto-reactivate on payment (only accounts it suspended for non-payment), no messages in quiet hours. Hard declines stop retries. 422 DAYS_INVALID (whole days 0–90) / DAYS_AFTER_SUSPEND (a retry or reminder on or after graceDays) / FINAL_AFTER_GRACE / CHANNEL_REQUIRED / QUIET_HOURS_INVALID / TEMPLATE_REQUIRED."
   /operator.billing.promises.create:
     post:
       operationId: createPaymentPromise
@@ -1663,111 +1662,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /operator.views.list:
-    get:
-      operationId: listSavedViews
-      tags: [OperatorViews]
-      summary: "The caller's views and the team's shared ones"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                required: [views]
-                properties:
-                  views:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/SavedView"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-  /operator.views.create:
-    post:
-      operationId: createSavedView
-      tags: [OperatorViews]
-      summary: Save a filtered list
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateSavedViewData"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SavedView"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-  /operator.views.update:
-    post:
-      operationId: updateSavedView
-      tags: [OperatorViews]
-      summary: Rename or pin (owner only)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [id]
-              properties:
-                id:
-                  type: string
-                  format: uuid
-                name:
-                  type: string
-                pinned:
-                  type: boolean
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SavedView"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-  /operator.views.delete:
-    post:
-      operationId: deleteSavedView
-      tags: [OperatorViews]
-      summary: Delete (owner only)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/IdData"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/IdData"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
   /operator.tasks.bulkCreate:
     post:
       operationId: bulkCreateTasks
@@ -2115,76 +2009,6 @@ paths:
             type: integer
             minimum: 3
             maximum: 18
-  /operator.health.settings.get:
-    get:
-      operationId: getHealthSettings
-      tags: [OperatorClients]
-      summary: Health score weights and grades
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HealthSettings"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      x-capability: client.read
-  /operator.health.preview:
-    post:
-      operationId: previewHealthSettings
-      tags: [OperatorClients]
-      summary: What these settings would change
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/HealthSettings"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HealthPreview"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      x-capability: client.read
-  /operator.health.settings.update:
-    post:
-      operationId: updateHealthSettings
-      tags: [OperatorClients]
-      summary: Apply new weights to every client
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/HealthSettings"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HealthSettings"
-        default:
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-      x-capability: team.write
-      description: "422 WEIGHTS_INVALID (must sum to 100) / THRESHOLDS_INVALID."
   /operator.announcements.list:
     get:
       operationId: listAnnouncements
@@ -3584,7 +3408,7 @@ components:
       enum: [sms, telegram, email]
     OverdueAccount:
       type: object
-      required: [clientID, clientName, owner, invoice, daysOverdue, remindersSent, nextStep, nextStepAt, schedule, health]
+      required: [clientID, clientName, owner, invoice, daysOverdue, remindersSent, nextStep, nextStepAt, manual, schedule, health]
       properties:
         clientID:
           type: string
@@ -3606,12 +3430,19 @@ components:
           format: date-time
         nextStep:
           type: string
-          enum: [remind, finalNotice, suspend, waitForPromise]
-          description: From DunningSettings. A step that was due and not sent comes first; nobody is suspended before the final notice went out.
+          enum: [retry, remind, finalNotice, suspend, waitForPromise, suspended]
+          description: "From DunningSettings. Chasing on: the next automatic step (a pending promise pauses everything before its day). Chasing off: what someone should do — remind, then the final notice from finalNoticeDay, then suspend after graceDays. Nobody is suspended before the final notice went out."
         nextStepAt:
           type: string
           format: date-time
+        manual:
+          type: boolean
+          description: "True when the next step waits for a person: chasing is off, or it is the suspension and autoSuspend is off."
+        finalNoticeSentAt:
+          type: string
+          format: date-time
         schedule:
+          description: The automatic chase for this invoice. Empty when chasing is off.
           type: array
           items:
             $ref: "#/components/schemas/DunningStep"
@@ -3874,47 +3705,6 @@ components:
                 type: string
               reason:
                 type: string
-    SavedView:
-      type: object
-      required: [id, name, path, search, pinned, shared, owner, createdAt]
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        path:
-          type: string
-          enum: [/clients, /billing/invoices, /billing/payments, /fleet, /tasks]
-        search:
-          type: object
-          additionalProperties: true
-        pinned:
-          type: boolean
-        shared:
-          type: boolean
-        owner:
-          $ref: "#/components/schemas/OperatorRef"
-        createdAt:
-          type: string
-          format: date-time
-    CreateSavedViewData:
-      type: object
-      required: [name, path, search, pinned, shared]
-      properties:
-        name:
-          type: string
-          minLength: 1
-        path:
-          type: string
-          enum: [/clients, /billing/invoices, /billing/payments, /fleet, /tasks]
-        search:
-          type: object
-          additionalProperties: true
-        pinned:
-          type: boolean
-        shared:
-          type: boolean
     AlertEvent:
       type: string
       enum: [fleetCrashLooping, fleetOffline, paymentFailed, promiseBroken, clientSigned, trialEnding, clientChurned, noFirstSale]
@@ -4061,80 +3851,6 @@ components:
           type: array
           items:
             type: number
-    HealthFactor:
-      type: string
-      enum: [payment, activity, fleet]
-    HealthSettings:
-      type: object
-      required: [weights, thresholds]
-      properties:
-        weights:
-          type: object
-          description: Whole percents summing to 100.
-          required: [payment, activity, fleet]
-          properties:
-            payment:
-              type: integer
-            activity:
-              type: integer
-            fleet:
-              type: integer
-        thresholds:
-          type: object
-          required: [good, watch]
-          properties:
-            good:
-              type: integer
-            watch:
-              type: integer
-        updatedAt:
-          type: string
-          format: date-time
-        updatedBy:
-          $ref: "#/components/schemas/OperatorRef"
-    HealthPreview:
-      type: object
-      required: [distribution, changes, signals]
-      properties:
-        distribution:
-          type: object
-          required: [good, watch, atRisk]
-          properties:
-            good:
-              type: integer
-            watch:
-              type: integer
-            atRisk:
-              type: integer
-        changes:
-          type: array
-          items:
-            type: object
-            required: [clientID, clientName, from, to, score]
-            properties:
-              clientID:
-                type: string
-                format: uuid
-              clientName:
-                type: string
-              from:
-                $ref: "#/components/schemas/HealthGrade"
-              to:
-                $ref: "#/components/schemas/HealthGrade"
-              score:
-                type: integer
-        signals:
-          type: array
-          items:
-            type: object
-            required: [factor, churnedAvg, retainedAvg]
-            properties:
-              factor:
-                $ref: "#/components/schemas/HealthFactor"
-              churnedAvg:
-                type: integer
-              retainedAvg:
-                type: integer
     SendReminderData:
       type: object
       required: [clientID, invoiceID, channel]
@@ -4151,6 +3867,11 @@ components:
           type: string
         includePayLink:
           type: boolean
+        kind:
+          type: string
+          enum: [reminder, finalNotice]
+          default: reminder
+          description: A final notice is recorded as one, so the suspension can follow it.
     FleetNode:
       allOf:
         - $ref: "../../kdsx-api/api-specs/schemas/Fleet.yml#/FleetNode"

@@ -65,8 +65,13 @@ function Members() {
               {operator.email}
               {operator.lastSeenAt ? ` · ${t("team:seen", {defaultValue: "seen {{when}}", when: formatRelative(operator.lastSeenAt)})}` : null}
             </span>
+            {/* On a phone the role and status sit under the name, so neither squeezes the email. */}
+            <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs sm:hidden">
+              <span>{operator.role.name}</span>
+              <TeamBadges operator={operator} />
+            </span>
           </span>
-          <span className="flex shrink-0 flex-col items-end gap-0.5 text-sm">
+          <span className="hidden shrink-0 flex-col items-end gap-0.5 text-sm sm:flex">
             {can(user, "role.read") ? (
               <Link to="/administration/roles/$id" params={{id: operator.role.id}} className="hover:underline">
                 {operator.role.name}
@@ -75,20 +80,29 @@ function Members() {
               <span>{operator.role.name}</span>
             )}
             <span className="flex items-center gap-2">
-              {operator.status === "active" ? (
-                <span className={operator.twoFactorEnabled ? "text-on-surface-green text-xs" : "text-on-surface-yellow text-xs"}>
-                  {operator.twoFactorEnabled ? "2FA" : t("team:no2fa", {defaultValue: "no 2FA"})}
-                </span>
-              ) : null}
-              <StatusText color={statusColor(operator.status)} className="text-on-surface-secondary text-xs capitalize">
-                {t(`team:status.${operator.status}`, {defaultValue: operator.status})}
-              </StatusText>
+              <TeamBadges operator={operator} />
             </span>
           </span>
           {can(user, "team.write") && operator.id !== user.id ? <EditDialog operator={operator} /> : null}
         </li>
       ))}
     </ul>
+  );
+}
+
+function TeamBadges({operator}: {operator: Operator}) {
+  let {t} = useTranslation();
+  return (
+    <>
+      {operator.status === "active" ? (
+        <span className={operator.twoFactorEnabled ? "text-on-surface-green text-xs" : "text-on-surface-yellow text-xs"}>
+          {operator.twoFactorEnabled ? "2FA" : t("team:no2fa", {defaultValue: "no 2FA"})}
+        </span>
+      ) : null}
+      <StatusText color={statusColor(operator.status)} className="text-on-surface-secondary text-xs capitalize">
+        {t(`team:status.${operator.status}`, {defaultValue: operator.status})}
+      </StatusText>
+    </>
   );
 }
 

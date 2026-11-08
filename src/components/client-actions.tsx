@@ -405,9 +405,11 @@ export function SendReminderDialog({
       trigger={trigger}
       title={kind === "finalNotice" ? t("billing:sendFinal", {defaultValue: "Send final notice"}) : t("billing:sendReminder", {defaultValue: "Send a payment reminder"})}
       action={t("billing:send", {defaultValue: "Send"})}
-      success={t("billing:reminderSent", {defaultValue: "Reminder sent"})}
+      success={kind === "finalNotice" ? t("billing:finalSent", {defaultValue: "Final notice sent"}) : t("billing:reminderSent", {defaultValue: "Reminder sent"})}
       onSubmit={(form) =>
-        mutationFn({body: {clientID, invoiceID: invoice.id, channel: text(form, "channel") as ReminderChannel, message: text(form, "message"), includePayLink: form.get("includePayLink") === "on"}})
+        mutationFn({
+          body: {clientID, invoiceID: invoice.id, kind, channel: text(form, "channel") as ReminderChannel, message: text(form, "message"), includePayLink: form.get("includePayLink") === "on"},
+        })
       }
     >
       <FormField label={t("billing:channel", {defaultValue: "Send by"})} htmlFor="channel">

@@ -63,11 +63,6 @@ export let getRevenueMovementOptions = revenueMovement.opts;
 let cohorts = read<{cohorts: T.Cohort[]}, {months?: number}>("listCohorts", "/operator.metrics.cohorts", ["Metrics"]);
 export let listCohortsOptions = cohorts.opts;
 
-let healthSettings = read<T.HealthSettings>("getHealthSettings", "/operator.health.settings.get", ["Clients"]);
-export let getHealthSettingsOptions = healthSettings.opts;
-export let updateHealthSettingsMutation = write<T.HealthSettings, T.HealthSettings>("/operator.health.settings.update");
-export let previewHealthSettingsMutation = write<T.HealthPreview, T.HealthSettings>("/operator.health.preview");
-
 let attention = read<{items: T.AttentionItem[]}>("getAttention", "/operator.attention", ["Metrics"]);
 export let getAttentionOptions = attention.opts;
 
@@ -213,13 +208,7 @@ export let createRoleMutation = write<T.Role, T.CreateRoleData>("/operator.roles
 export let updateRoleMutation = write<T.Role, T.UpdateRoleData>("/operator.roles.update");
 export let deleteRoleMutation = write<{id: string}, {id: string}>("/operator.roles.delete");
 
-// ---- Saved views and bulk actions ---------------------------------------------------------------
-
-let savedViews = read<{views: T.SavedView[]}>("listSavedViews", "/operator.views.list", ["Views"]);
-export let listSavedViewsOptions = savedViews.opts;
-export let createSavedViewMutation = write<T.SavedView, T.CreateSavedViewData>("/operator.views.create");
-export let updateSavedViewMutation = write<T.SavedView, {id: string; pinned?: boolean; name?: string}>("/operator.views.update");
-export let deleteSavedViewMutation = write<{id: string}, {id: string}>("/operator.views.delete");
+// ---- Bulk actions ---------------------------------------------------------------
 
 export let bulkUpdateClientsMutation = write<T.BulkResult, T.BulkUpdateClientsData>("/operator.clients.bulkUpdate");
 export let bulkCreateTasksMutation = write<T.BulkResult, T.BulkCreateTasksData>("/operator.tasks.bulkCreate");

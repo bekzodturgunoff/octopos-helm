@@ -342,17 +342,15 @@ function phone() {
 
 export type MockClient = T.ClientDetail;
 
-export let healthSettings: T.HealthSettings = {weights: {payment: 40, activity: 35, fleet: 25}, thresholds: {good: 70, watch: 45}};
-
-export function grade(score: number, settings: T.HealthSettings = healthSettings): T.HealthGrade {
-  if (score >= settings.thresholds.good) return "good";
-  if (score >= settings.thresholds.watch) return "watch";
+/** The demo's stand-in for the server's scoring: payments 40%, activity 35%, installations 25%; Healthy from 70, Watch from 45. */
+function grade(score: number): T.HealthGrade {
+  if (score >= 70) return "good";
+  if (score >= 45) return "watch";
   return "atRisk";
 }
 
-export function scoreWith(health: Pick<T.ClientHealth, "payment" | "fleet" | "activity">, settings: T.HealthSettings = healthSettings) {
-  let w = settings.weights;
-  return Math.round((health.payment * w.payment + health.fleet * w.fleet + health.activity * w.activity) / 100);
+function scoreWith(health: Pick<T.ClientHealth, "payment" | "fleet" | "activity">) {
+  return Math.round((health.payment * 40 + health.fleet * 25 + health.activity * 35) / 100);
 }
 
 export let ONBOARDING_ORDER: T.OnboardingStepKey[] = ["signed", "installBooked", "installed", "menuLoaded", "staffAdded", "trained", "firstSale", "firstPayment"];
@@ -415,7 +413,7 @@ export let payments: T.Payment[] = [];
 export let notes: T.Note[] = [];
 export let tasks: T.Task[] = [];
 export let activity: T.ActivityEvent[] = [];
-export let reminders: Record<string, {count: number; lastAt?: string}> = {};
+export let reminders: Record<string, {count: number; lastAt?: string; finalAt?: string}> = {};
 
 let VERSIONS = ["2026.11.2", "2026.11.2", "2026.11.2", "2026.11.1", "2026.10.4", "2026.10.4", "2026.09.3"];
 
@@ -620,7 +618,8 @@ function generate() {
               : "active";
 
     let amount = planPrice(p, cycle);
-    let periodEndDays = story === "trialEnding" ? between(1, 3) : story === "pastDue" || story === "suspended" ? -between(4, 26) : story === "churned" ? -between(20, 50) : 30 - periodStart;
+    let periodEndDays =
+      story === "trialEnding" ? between(1, 3) : story === "suspended" ? -between(22, 30) : story === "pastDue" ? -between(4, 19) : story === "churned" ? -between(20, 50) : 30 - periodStart;
     if (story === "steady" && random() > 0.65) periodEndDays = between(1, 7);
 
     let locationsCount = p.slug === "scale" ? between(3, 8) : p.slug === "growth" ? between(1, 3) : 1;
@@ -736,7 +735,7 @@ function generate() {
         invoices.push(inv);
         client.balanceDue = amount;
         let sent = story === "suspended" ? 3 : Math.min(2, Math.floor(daysAgo / 7));
-        reminders[client.id] = {count: sent, lastAt: sent ? daysFromNow(-between(1, 5)) : undefined};
+        reminders[client.id] = {count: sent, lastAt: sent ? daysFromNow(-between(1, 5)) : undefined, finalAt: story === "suspended" ? daysFromNow(-(daysAgo - 14)) : undefined};
         if (vendor !== "none") {
           payments.push({
             id: id("pm"),

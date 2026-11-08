@@ -45,7 +45,7 @@
   "health.watch": "Watch",
   "healthActivity": "Activity",
   "healthFleet": "Installations",
-  "healthHintDynamic": "Payments weigh {{payment}}%, activity {{activity}}%, installations {{fleet}}%. Computed by the server nightly and after every payment.",
+  "healthHint": "Made from payments, activity and installations. Computed by the server nightly and after every payment.",
   "healthPayment": "Payments",
   "healthScore": "Health score",
   "healthShort": "Health",
@@ -132,7 +132,6 @@
   "taskForEachTitle": "Create a task for each of {{count}} clients",
   "tasksCreated": "Tasks created",
   "totalClients": "{{count}} clients",
-  "tune": "Tune",
   "unattended": "Unattended",
   "unattendedSet": "Unattended access is set up (nobody has to accept)",
   "users": "Staff accounts"

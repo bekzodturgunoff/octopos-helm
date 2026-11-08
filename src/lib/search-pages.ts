@@ -45,7 +45,6 @@ export let SEARCH_PAGES: SearchPage[] = [
   {to: "/flows/new-role", label: "New role", section: "admin", capabilities: ["role.write"]},
   {to: "/administration/team", label: "Team", section: "admin", capabilities: ["team.read"]},
   {to: "/administration/activity", label: "Activity log", section: "admin", capabilities: ["audit.read"]},
-  {to: "/administration/health-score", label: "Health score", section: "admin", capabilities: ["client.read"]},
   {to: "/administration/notifications", label: "Team alerts", section: "admin", capabilities: ["team.read"]},
   {to: "/settings/notifications", label: "My notifications", section: "admin"},
   {to: "/settings/security", label: "Security and two-factor", section: "admin"},
