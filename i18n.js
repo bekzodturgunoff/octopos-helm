@@ -15,6 +15,9 @@ i18n
     supportedLngs: supportedLanguages,
     nonExplicitSupportedLngs: true,
     load: "languageOnly",
+    // Keys like "health.atRisk" and "subscriptionStatus.active" are stored flat, so a dot is part
+    // of the key rather than a path into nested objects.
+    keySeparator: false,
     debug: false,
     interpolation: {
       escapeValue: false,
