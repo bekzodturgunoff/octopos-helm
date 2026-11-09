@@ -49,9 +49,11 @@ The map is the dash's: `@yeahuz/kdsx-react/map` on our own Uzbekistan tiles from
 
 ## For the backend
 
-Everything the UI needs is in **`api-spec/operator.yml`** — 48 operations, OpenAPI 3.0, in the same RPC style as `kdsx-api/api-specs` (GET reads with query params, POST writes with a JSON body, the same `Money` and `Error` shapes). Each operation names the capability it must check as `x-capability`.
+**Start with [`BACKEND.md`](BACKEND.md):** the full hand-off (headers and CORS, build order, the rules the server enforces, background jobs, Telegram, the map, the dash changes, and the settings for going live).
 
-- **Two already exist** in kdsx-api: `operator.fleet.nodes` (add `tenantName` to each node) and `operator.fleet.retireNode`.
+Everything the UI needs is in **`api-spec/operator.yml`** — 88 operations, OpenAPI 3.0, in the same RPC style as `kdsx-api/api-specs` (GET reads with query params, POST writes with a JSON body, the same `Money` and `Error` shapes). Each operation names the capability it must check as `x-capability`.
+
+- **Two already exist** in kdsx-api: `operator.fleet.nodes` (add `tenantName` to each node) and `operator.fleet.retireNode`. Everything else, including the Telegram operations, is to be built.
 - **Auth**: every call sends `Authorization: Bearer <sessionID>` from `operator.auth.signIn`. The current static `OperatorToken` can be accepted on the same header while sessions are built.
 - **Access control**: an operator holds one role; `operator.auth.me` returns the role's permissions as a map of capability → scope. The `assigned` scope must be enforced server-side on every client and billing list and on single reads/writes. The Owner role is built in (`internal`) and can never be edited or left without an active member.
 - **Errors**: return kdsx-api's `Error` body; Helm shows `message` to the operator as-is, so write it for a person.
