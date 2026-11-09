@@ -1,0 +1,13 @@
+{
+  "name": "octopos-helm-bot",
+  "private": true,
+  "type": "module",
+  "description": "@octopos_helm_bot: Helm in Telegram for the Octopos team",
+  "engines": {
+    "node": ">=23.6"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "check": "tsc -p ."
+  }
+}

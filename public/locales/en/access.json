@@ -23,6 +23,7 @@
   "resource.billing": "Billing",
   "resource.clients": "Clients",
   "resource.fleet": "Fleet",
+  "resource.reports": "Reports",
   "resource.team": "Team and access",
   "resource.work": "Tasks and announcements",
   "role": "Role",

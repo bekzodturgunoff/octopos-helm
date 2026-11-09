@@ -20,6 +20,7 @@
   "alertHint.promiseBroken": "Va'da qilingan kun o'tdi va hisob-faktura hali ochiq.",
   "alertHint.trialEnding": "Uch kun oldin, kartasiz.",
   "alertsSaved": "Jamoa ogohlantirishlari saqlandi",
+  "announcementsSubtitle": "Mijozlar dash'idagi bannerlar: hammaga yoki tarif bo'yicha",
   "anyone": "Har kim",
   "chainBroken": "Zanjir {{at}} da uziladi — bir yozuv o'zgartirilgan yoki olib tashlangan.",
   "chainOk": "Jurnal butun — {{count}} yozuv, har biri avvalgisiga bog'langan. Hech kim, egalari ham, yozuvni tahrirlay yoki o'chira olmaydi.",

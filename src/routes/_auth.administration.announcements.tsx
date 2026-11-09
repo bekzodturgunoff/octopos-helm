@@ -14,10 +14,10 @@ import {announcementColor, announcementStatusColor} from "@/lib/status";
 import {formatDateTime} from "@/lib/format";
 import {can} from "@/permission";
 
-export let Route = createFileRoute("/_auth/announcements")({
+export let Route = createFileRoute("/_auth/administration/announcements")({
   beforeLoad: ({context}) => {
     if (!can(context.user, "announcement.write")) throw redirect({to: "/403"});
-    return {backLink: {to: "/"}};
+    return {backLink: {to: "/administration"}};
   },
   component: Announcements,
 });

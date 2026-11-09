@@ -2,7 +2,7 @@ import {Suspense, useMemo, useState, FormEvent} from "react";
 import {useMutation, useQuery, useQueryClient, useSuspenseQuery} from "@tanstack/react-query";
 import {createFileRoute, Link, redirect} from "@tanstack/react-router";
 import {Alert, AlertDescription, AlertTitle, Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Tabs, TabsList, TabsTrigger, Tag, Textarea} from "@yeahuz/kdsx-react";
-import {ExternalLink, MoreHorizontal, Pin, Server, Trash2, ReceiptText, StickyNote, History} from "lucide-react";
+import {ExternalLink, MoreHorizontal, Pin, Server, Trash2, ReceiptText, StickyNote, History, MapPin} from "lucide-react";
 import {useTranslation} from "react-i18next";
 import type {EChartsOption} from "echarts";
 import {
@@ -12,6 +12,7 @@ import {
   getOperatorFleetNodesOptions,
   listActivityOptions,
   listClientNotesOptions,
+  listClientPlacesOptions,
   listInvoicesOptions,
   listPaymentsOptions,
   listTasksOptions,
@@ -22,6 +23,8 @@ import {DetailPageSkeleton, ListSkeleton} from "@/components/skeletons";
 import {Field, Fields, Section} from "@/components/field";
 import {HealthBadge, HealthBreakdown} from "@/components/health-badge";
 import {StatusText} from "@/components/status-text";
+import {PlacesMap} from "@/components/places-map";
+import {mapLinks, placeKey} from "@/lib/places";
 import {EmptyState} from "@/components/empty-state";
 import {ChartCard} from "@/components/chart-card";
 import {ECharts} from "@/components/echart";
@@ -47,6 +50,7 @@ import {clientStatusColor, clientStatusLabel, healthLabel, subscriptionStatusCol
 import {formatDate, formatDateTime, formatDue, formatNumber, formatRelative} from "@/lib/format";
 import {can, Can} from "@/permission";
 import {DashLink} from "@/components/dash-link";
+import {dashUrl} from "@/lib/dash";
 import {useToast} from "@/components/toaster";
 import {RemoteAccessList} from "@/components/remote-access";
 import {OnboardingChecklist} from "@/components/onboarding";
@@ -92,8 +96,9 @@ function ClientContent() {
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h1 className="text-3xl font-semibold tracking-tight">{client.name}</h1>
-            <a href="https://dash.octopos.uz" target="_blank" rel="noreferrer" className="text-on-surface-secondary mt-1 inline-flex items-center gap-1 text-sm hover:underline">
-              dash.octopos.uz <ExternalLink size={12} />
+            {/* Their own dash, <slug>.dash.octopos.uz, e.g. black-bear-coffee.dash.octopos.uz. */}
+            <a href={dashUrl(client.slug)} target="_blank" rel="noreferrer" className="text-on-surface-secondary mt-1 inline-flex max-w-full items-center gap-1 text-sm break-all hover:underline">
+              {dashUrl(client.slug).replace("https://", "")} <ExternalLink size={12} className="shrink-0" />
             </a>
           </div>
           <HealthBadge health={client.health} className="shrink-0" />
@@ -375,17 +380,7 @@ function OverviewTab({client}: {client: ClientDetail}) {
 
         <Section title={t("clients:locations", {defaultValue: "Locations"})}>
           {client.locations.length ? (
-            <ul className="flex flex-col gap-3">
-              {client.locations.map((location) => (
-                <li key={location.id} className="flex items-center justify-between gap-4">
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate">{location.name}</span>
-                    <span className="text-on-surface-secondary line-clamp-2 text-sm sm:truncate">{location.address}</span>
-                  </span>
-                  <span className="text-on-surface-secondary shrink-0 text-sm">{t("fleet:installationCount", {defaultValue: "{{count}} installations", count: location.installations})}</span>
-                </li>
-              ))}
-            </ul>
+            <ClientLocations client={client} />
           ) : (
             <span className="text-on-surface-secondary text-sm">{t("clients:noLocations", {defaultValue: "No locations set up yet."})}</span>
           )}
@@ -631,4 +626,57 @@ function ClientTimeline({clientID, category, emptyTitle}: {clientID: string; cat
   let {data} = useSuspenseQuery(listActivityOptions({query: {clientID, category, pageSize: 100}}));
   if (!data.items.length) return <EmptyState icon={History} title={emptyTitle} />;
   return <ActivityList events={data.items} showClient={false} />;
+}
+
+/**
+ * The client's branches: a small map of them (with each branch's own till state, from the same
+ * call as the Map page) and, under each, directions in whichever map app the phone has.
+ */
+function ClientLocations({client}: {client: ClientDetail}) {
+  let {t} = useTranslation();
+  let {data} = useQuery(listClientPlacesOptions());
+  let places = useMemo(() => data?.items.filter((p) => p.clientID === client.id) ?? [], [data, client.id]);
+  return (
+    <div className="flex flex-col gap-4">
+      {places.length ? <PlacesMap places={places} cooperative className="h-56" /> : null}
+      <ul className="flex flex-col gap-3">
+        {client.locations.map((location) => {
+          let placed = location.latitude != null && location.longitude != null;
+          return (
+            <li key={location.id} className="flex items-start justify-between gap-4">
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate">{location.name}</span>
+                <span className="text-on-surface-secondary line-clamp-2 text-sm sm:truncate">{location.address}</span>
+                {location.phone ? (
+                  <a href={`tel:${location.phone.replace(/\s/g, "")}`} className="text-on-surface-secondary text-sm">
+                    {location.phone}
+                  </a>
+                ) : null}
+                {placed ? (
+                  <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                    <span className="text-on-surface-secondary">{t("clients:directionsIn", {defaultValue: "Directions in"})}</span>
+                    {mapLinks({latitude: location.latitude!, longitude: location.longitude!}).map((link) => (
+                      <Button key={link.name} variant="link" size="none" className="max-w-fit" asChild>
+                        <a href={link.href} target="_blank" rel="noreferrer">
+                          {link.name}
+                        </a>
+                      </Button>
+                    ))}
+                    <Button variant="link" size="none" className="max-w-fit" asChild>
+                      <Link to="/clients/map" search={{place: placeKey({clientID: client.id, location})}}>
+                        <MapPin size={12} /> {t("clients:onTheMap", {defaultValue: "On the map"})}
+                      </Link>
+                    </Button>
+                  </span>
+                ) : (
+                  <span className="text-on-surface-secondary text-xs">{t("clients:noPoint", {defaultValue: "No point on the map yet: the client sets it in their dash."})}</span>
+                )}
+              </span>
+              <span className="text-on-surface-secondary shrink-0 text-sm">{t("fleet:installationCount", {defaultValue: "{{count}} installations", count: location.installations})}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
 }

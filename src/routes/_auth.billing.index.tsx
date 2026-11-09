@@ -2,27 +2,30 @@ import {Suspense} from "react";
 import {useSuspenseQuery} from "@tanstack/react-query";
 import {createFileRoute, Link, redirect} from "@tanstack/react-router";
 import {NavOption, NavOptionAdornmentWithBg} from "@yeahuz/kdsx-react";
-import {AlertTriangle, CalendarClock, CreditCard, HeartHandshake, Layers, ReceiptText, Workflow} from "lucide-react";
+import {AlertTriangle, CalendarClock, CreditCard, FileChartColumn, HeartHandshake, Layers, ReceiptText, Workflow} from "lucide-react";
 import {useTranslation} from "react-i18next";
 import {getOverviewMetricsOptions} from "@/api";
 import {StatCard} from "@/components/stat-card";
 import {Skeleton} from "@/components/skeleton";
 import {formatPercent} from "@/lib/format";
-import {can} from "@/permission";
+import {can, canAny} from "@/permission";
 
 export let Route = createFileRoute("/_auth/billing/")({
   beforeLoad: ({context}) => {
-    if (!can(context.user, "billing.read")) throw redirect({to: "/403"});
+    // The area holds money pages and reports; either is reason enough to open it.
+    if (!canAny(context.user, "billing.read", "report.read")) throw redirect({to: "/403"});
     return {backLink: {to: "/"}};
   },
   loader: ({context}) => {
-    context.queryClient.prefetchQuery(getOverviewMetricsOptions());
+    if (can(context.user, "billing.read")) context.queryClient.prefetchQuery(getOverviewMetricsOptions());
   },
   component: Billing,
 });
 
 function Billing() {
   let {t} = useTranslation();
+  let {user} = Route.useRouteContext();
+  let billing = can(user, "billing.read");
   let entries = [
     {
       to: "/billing/renewals",
@@ -61,13 +64,23 @@ function Billing() {
       subtitle: t("billing:paymentsSubtitle", {defaultValue: "Click, Payme and manual payments, failed ones included"}),
     },
     {to: "/billing/plans", icon: Layers, title: t("billing:plans", {defaultValue: "Plans"}), subtitle: t("billing:plansSubtitle", {defaultValue: "Prices, features and who is on each"})},
-  ] as const;
+  ].filter(() => billing);
+  if (can(user, "report.read")) {
+    entries.push({
+      to: "/billing/reports",
+      icon: FileChartColumn,
+      title: t("reports:reports", {defaultValue: "Reports"}),
+      subtitle: t("billing:reportsSubtitle", {defaultValue: "Income gained and lost month by month, and whether new clients stay"}),
+    });
+  }
   return (
     <div className="flex flex-col gap-10 px-4">
       <h1 className="text-3xl font-semibold tracking-tight">{t("billing:billing", {defaultValue: "Billing"})}</h1>
-      <Suspense fallback={<Skeleton className="h-28 rounded-xl" />}>
-        <Summary />
-      </Suspense>
+      {billing ? (
+        <Suspense fallback={<Skeleton className="h-28 rounded-xl" />}>
+          <Summary />
+        </Suspense>
+      ) : null}
       <ul>
         {entries.map((entry) => (
           <li key={entry.to}>

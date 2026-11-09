@@ -8,10 +8,10 @@ let JUMPS: {key: string; to: string; label: string}[] = [
   {key: "c", to: "/clients", label: "Clients"},
   {key: "b", to: "/billing", label: "Billing"},
   {key: "d", to: "/billing/overdue", label: "Overdue"},
-  {key: "r", to: "/reports", label: "Reports"},
+  {key: "r", to: "/billing/reports", label: "Reports"},
   {key: "f", to: "/fleet", label: "Fleet"},
   {key: "t", to: "/tasks", label: "Tasks"},
-  {key: "a", to: "/announcements", label: "Announcements"},
+  {key: "a", to: "/administration/announcements", label: "Announcements"},
   {key: "s", to: "/settings", label: "Settings"},
 ];
 

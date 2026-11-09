@@ -1,11 +1,15 @@
 import {NavOption, NavOptionAdornmentWithBg} from "@yeahuz/kdsx-react";
-import {createFileRoute, Link} from "@tanstack/react-router";
-import {BellRing, History, Users, Vault} from "lucide-react";
+import {createFileRoute, Link, redirect} from "@tanstack/react-router";
+import {BellRing, History, Megaphone, Users, Vault} from "lucide-react";
 import {useTranslation} from "react-i18next";
-import {Can} from "@/permission";
+import {Can, canAny} from "@/permission";
 
 export let Route = createFileRoute("/_auth/administration/")({
-  beforeLoad: () => ({backLink: {to: "/"}}),
+  beforeLoad: ({context}) => {
+    // Every card below needs one of these; without any the page would be empty.
+    if (!canAny(context.user, "team.read", "role.read", "audit.read", "announcement.write")) throw redirect({to: "/403"});
+    return {backLink: {to: "/"}};
+  },
   component: Administration,
 });
 
@@ -57,6 +61,21 @@ function Administration() {
                 }
                 title={t("team:teamAlerts", {defaultValue: "Team alerts"})}
                 subtitle={t("team:teamAlertsSubtitle", {defaultValue: "Installation and billing trouble posted to the team's Telegram group"})}
+              />
+            </Link>
+          </li>
+        </Can>
+        <Can subject={user} capability="announcement.write">
+          <li>
+            <Link to="/administration/announcements">
+              <NavOption
+                startAdornment={
+                  <NavOptionAdornmentWithBg>
+                    <Megaphone size={20} />
+                  </NavOptionAdornmentWithBg>
+                }
+                title={t("common:announcements", {defaultValue: "Announcements"})}
+                subtitle={t("team:announcementsSubtitle", {defaultValue: "Banners in the clients' dash, for everyone or by plan"})}
               />
             </Link>
           </li>

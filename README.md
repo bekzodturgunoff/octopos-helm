@@ -23,16 +23,29 @@ Set `VITE_API_MOCK=` (empty) and `VITE_API_URL` to talk to a real API.
 | -------------- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Overview       | `/`                                          | MRR and trend, past due, renewals this week, plan mix, fleet health, a ranked "needs attention" list                                                            |
 | Clients        | `/clients`, `/clients/$id`                   | Search/filter/sort by health, MRR or renewal; a client page with subscription, billing, installations, notes, activity                                          |
+| Map            | `/clients/map`                               | Every client branch on the dash's own map, coloured by what it needs (visit, call, fine); filters, nearest to me, directions in Yandex / Google / 2GIS          |
 | New client     | `/flows/new-client`                          | Create a tenant, owner, plan and trial in one form                                                                                                              |
-| Billing        | `/billing/*`                                 | Renewals calendar, overdue (dunning) queue, invoices, payments, plans                                                                                           |
+| Billing        | `/billing/*`                                 | Renewals calendar, overdue (dunning) queue, invoices, payments, plans, reports                                                                                  |
 | Fleet          | `/fleet`, `/fleet/$id`, `/fleet/releases`    | Every installation judged from both heartbeats (logic ported from the dash's `lib/fleet.ts`), pin/pause/retire, release rollout                                 |
 | Tasks          | `/tasks`                                     | Quick add, Mine / Everyone / Unassigned / Done with counts, search and filters, click to edit, snooze and assign from the row, tick with Undo, N for a new task |
-| Announcements  | `/announcements`                             | Banners for the clients' dash, by plan or for everyone, scheduled or now                                                                                        |
+| Announcements  | `/administration/announcements`              | Banners for the clients' dash, by plan or for everyone, scheduled or now                                                                                        |
 | Access control | `/administration/roles/*`, `/flows/new-role` | Same as the dash: roles, role page, edit details, edit permissions (full access, search, grouped capabilities with scope), 3-step new-role flow                 |
 | Administration | `/administration/*`                          | Team (invite, change role, disable), append-only activity log                                                                                                   |
 | Settings       | `/settings/*`                                | Same layout as the dash: account card, language and appearance (incl. finish)                                                                                   |
 
 New beyond the dash's admin section: **client health score** (payment 40% · activity 35% · installations 25%), **dunning queue** with a next step per account, **support sessions** into a client's dash (logged, with a reason), **renewal calendar** split autopay/manual, **release rollout** view, **tasks**, **announcements**, **notes**, **audit log**, **role-based access control** with custom roles and an _assigned clients only_ scope for account managers and a **⌘K palette** that finds clients by name, subdomain, owner or phone.
+
+### Adding a page
+
+The side menu lists areas of work, not pages: Overview, Clients, Billing, Fleet, and Administration at the bottom. Tasks lives in the top bar, with its count. A new page goes into the area it belongs to, as a card on that area's hub (like Billing's and Administration's) or as a tab (like Clients' List / Map), and gets one line in `src/lib/search-pages.ts` so ⌘K finds it. Add a menu item only for a whole new kind of work, and keep the menu at six items or fewer.
+
+### Maps
+
+The map is the dash's: `@yeahuz/kdsx-react/map` on our own Uzbekistan tiles from `kdsx-api/docker-compose-geo.yml`. Set the same three values the dash uses (see `env.example`): `VITE_MAP_TILES_URL`, `VITE_MAP_ARCHIVE` and `VITE_MAP_GLYPHS`. Without them the Map page still lists branches with directions, just with no map drawn.
+
+## Telegram bot
+
+`bot/` is **@octopos_helm_bot**: team alerts with a "Take it" button, the morning digest, tasks with ✓, and `/client`, `/overdue`, `/fleet` answered under each person's own Helm role. People connect it from Settings → Notifications → Connect Telegram. See [`bot/README.md`](bot/README.md) to set it up.
 
 ## For the backend
 
@@ -43,6 +56,7 @@ Everything the UI needs is in **`api-spec/operator.yml`** — 48 operations, Ope
 - **Access control**: an operator holds one role; `operator.auth.me` returns the role's permissions as a map of capability → scope. The `assigned` scope must be enforced server-side on every client and billing list and on single reads/writes. The Owner role is built in (`internal`) and can never be edited or left without an active member.
 - **Errors**: return kdsx-api's `Error` body; Helm shows `message` to the operator as-is, so write it for a person.
 - **Server-owned rules** (the UI only displays them): health score and grade, the "needs attention" list, the dunning `nextStep`, MRR (yearly at a twelfth).
+- **Branch coordinates**: `ClientLocation` carries the branch's `latitude`, `longitude` and `phone` from the tenant's own location (the one delivery already uses), and `operator.clients.places` lists every placed branch with that branch's own installation counts, for the map.
 - **One dash change** is needed for announcements to reach clients: a read endpoint such as `announcements.current` and a banner like `SubscriptionExpiryBanner`.
 
 ### Switching from the mock to the real API

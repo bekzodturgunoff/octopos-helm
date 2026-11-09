@@ -1,4 +1,5 @@
 import type * as T from "../types";
+import {slugify} from "@/lib/dash";
 
 // A believable book of business, generated from a fixed seed so every reload shows the same clients
 // and a screenshot in a ticket still matches what the next person sees. Nothing here is real.
@@ -59,6 +60,11 @@ export let accessResources: T.AccessResource[] = [
     ],
   },
   {
+    code: "reports",
+    name: "Reports",
+    capabilities: [{value: "report.read", name: "View reports", description: "Income gained and lost month by month, and whether new clients stay", scopes: []}],
+  },
+  {
     code: "fleet",
     name: "Fleet",
     capabilities: [
@@ -113,6 +119,7 @@ export let roles: T.Role[] = [
         "team.read",
         "role.read",
         "audit.read",
+        "report.read",
       ] as T.Capability[]
     ).map((c) => grant(c)),
     memberCount: 0,
@@ -132,7 +139,7 @@ export let roles: T.Role[] = [
     name: "Finance",
     description: "Collects: payments, invoices, reminders and plan changes.",
     internal: false,
-    permissions: (["client.read", "billing.read", "billing.write", "task.write", "audit.read"] as T.Capability[]).map((c) => grant(c)),
+    permissions: (["client.read", "billing.read", "billing.write", "report.read", "task.write", "audit.read"] as T.Capability[]).map((c) => grant(c)),
     memberCount: 0,
     createdAt: daysFromNow(-500),
   },
@@ -329,11 +336,55 @@ let FIRST = ["Akmal", "Nodira", "Rustam", "Gulnora", "Shoxrux", "Malika", "Ulug'
 let LAST = ["Tursunov", "Ismoilova", "Nazarov", "Saidova", "Xolmatov", "Ergasheva", "Qodirov", "Mirzayeva", "Abdullayev", "Usmonova"];
 let TYPES: T.BusinessType[] = ["restaurant", "restaurant", "cafe", "fastFood", "bar", "bakery", "retail"];
 
-function slugify(name: string) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+// Where branches are, from a generator of its own: drawing them from the one above would move every
+// client, invoice and id that comes after, and links people saved to the demo would stop working.
+let geoSeed = 20261109;
+function geoRandom() {
+  geoSeed = (geoSeed * 1664525 + 1013904223) % 4294967296;
+  return geoSeed / 4294967296;
+}
+
+// City centres, and how far from them a branch may be: Tashkent sprawls, the others do not.
+let CITY_CENTRES: Record<string, {latitude: number; longitude: number; spread: number}> = {
+  Tashkent: {latitude: 41.3111, longitude: 69.2797, spread: 0.09},
+  Samarkand: {latitude: 39.6542, longitude: 66.9597, spread: 0.03},
+  Bukhara: {latitude: 39.7747, longitude: 64.4286, spread: 0.025},
+  Fergana: {latitude: 40.3864, longitude: 71.7864, spread: 0.025},
+  Namangan: {latitude: 40.9983, longitude: 71.6726, spread: 0.025},
+  Andijan: {latitude: 40.7821, longitude: 72.3442, spread: 0.025},
+  Nukus: {latitude: 42.4619, longitude: 59.6166, spread: 0.02},
+};
+let STREETS = ["Amir Temur", "Navoi", "Bobur", "Mustaqillik", "Shota Rustaveli"];
+
+/** Puts a client's branches in its own city, most with a point and phone; a few not set up yet. */
+function placeLocations(client: MockClient) {
+  let centre = CITY_CENTRES[client.city ?? "Tashkent"] ?? CITY_CENTRES.Tashkent;
+  for (let location of client.locations) {
+    location.address = `${client.city ?? "Tashkent"}, ${STREETS[Math.floor(geoRandom() * STREETS.length)]} ${1 + Math.floor(geoRandom() * 120)}`;
+    location.phone = `+998 ${client.city === "Tashkent" ? "71" : "6" + Math.floor(geoRandom() * 10)} ${200 + Math.floor(geoRandom() * 799)} ${10 + Math.floor(geoRandom() * 89)} ${10 + Math.floor(geoRandom() * 89)}`;
+    // About one branch in nine has never had its point set in the dash.
+    if (geoRandom() < 0.11) continue;
+    location.latitude = Math.round((centre.latitude + (geoRandom() - 0.5) * 2 * centre.spread * 0.75) * 1e6) / 1e6;
+    location.longitude = Math.round((centre.longitude + (geoRandom() - 0.5) * 2 * centre.spread) * 1e6) / 1e6;
+  }
+}
+
+/** Running, lagging, running but not syncing, or not heard from: the same buckets the client list counts. */
+export function countInstallations(nodes: T.FleetNode[], now = Date.now()): T.ClientInstallations {
+  return nodes.reduce(
+    (acc, n) => {
+      acc.total++;
+      let s = n.lastCheckinAt && Date.parse(n.lastCheckinAt) > now - 5 * 60000;
+      let e = n.lastExchangeAt && Date.parse(n.lastExchangeAt) > now - 5 * 60000;
+      if (s && e) {
+        if (n.pendingUploads || n.behindBy || n.unresolvedConflicts) acc.degraded++;
+        else acc.healthy++;
+      } else if (s) acc.failing++;
+      else acc.offline++;
+      return acc;
+    },
+    {total: 0, healthy: 0, degraded: 0, failing: 0, offline: 0},
+  );
 }
 
 function phone() {
@@ -687,6 +738,8 @@ function generate() {
           else if (random() > 0.93) shape = "offline";
           else if (random() > 0.92) shape = "degraded";
           let node = makeNode(client, shape, fleetNodes.length, location.name);
+          // The branch it stands in, so the map can say which tills are where.
+          node.location = {...node.location!, id: location.id};
           location.installations++;
           fleetNodes.push(node);
           // Most tills get remote access at install (mostly AnyDesk, some RustDesk, the odd TeamViewer);
@@ -774,22 +827,11 @@ function generate() {
       }
     }
 
-    client.installations = fleetNodes
-      .filter((n) => n.tenantID === client.id)
-      .reduce(
-        (acc, n) => {
-          acc.total++;
-          let s = n.lastCheckinAt && Date.parse(n.lastCheckinAt) > NOW - 5 * 60000;
-          let e = n.lastExchangeAt && Date.parse(n.lastExchangeAt) > NOW - 5 * 60000;
-          if (s && e) {
-            if (n.pendingUploads || n.behindBy || n.unresolvedConflicts) acc.degraded++;
-            else acc.healthy++;
-          } else if (s) acc.failing++;
-          else acc.offline++;
-          return acc;
-        },
-        {total: 0, healthy: 0, degraded: 0, failing: 0, offline: 0},
-      );
+    client.installations = countInstallations(
+      fleetNodes.filter((n) => n.tenantID === client.id),
+      NOW,
+    );
+    placeLocations(client);
     client.health = computeHealth(client);
     // Onboarding by story: settled clients finished it long ago; trials are mid-way, one of them
     // installed with no sale yet — the early-churn shape worth a call.

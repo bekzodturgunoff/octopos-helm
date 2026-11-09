@@ -77,6 +77,9 @@ export let listClients = clients.fetcher;
 let client = read<T.ClientDetail, {id: string}>("getClient", "/operator.clients.get", ["Clients"]);
 export let getClientQueryKey = client.key;
 export let getClientOptions = client.opts;
+/** Every branch with a point, for the map. */
+let places = read<T.ClientPlaces>("listClientPlaces", "/operator.clients.places", ["Clients"]);
+export let listClientPlacesOptions = places.opts;
 /** Is this dash address free? Asked as the name is typed in the new-client flow. */
 let slugCheck = read<T.SlugCheck, {slug: string}>("checkClientSlug", "/operator.clients.checkSlug", ["OperatorClients"]);
 export let checkClientSlugOptions = slugCheck.opts;
@@ -235,5 +238,11 @@ export let getDigestPreviewOptions = digestPreview.opts;
 
 let operators = read<{operators: T.Operator[]}>("listOperators", "/operator.team.list", ["Team"]);
 export let listOperatorsOptions = operators.opts;
+
+// ---- Telegram (@octopos_helm_bot) ---------------------------------------------------------------
+let telegram = read<T.TelegramLink>("getTelegramLink", "/operator.telegram.me", ["Telegram"]);
+export let getTelegramLinkOptions = telegram.opts;
+export let createTelegramLinkCodeMutation = write<T.TelegramLinkCode, Record<string, never>>("/operator.telegram.link");
+export let unlinkTelegramMutation = write<T.TelegramLink, Record<string, never>>("/operator.telegram.unlink");
 export let inviteOperatorMutation = write<T.Operator, T.InviteOperatorData>("/operator.team.invite");
 export let updateOperatorMutation = write<T.Operator, T.UpdateOperatorData>("/operator.team.update");

@@ -1,0 +1,27 @@
+# Runs next to kdsx-api on the same server and Docker network:
+# - the bot reaches the API as http://master-api:3000 (HELM_API_URL in bot/.env)
+# - the API reaches the bot as http://helm-bot:8787/events
+# Nothing is published to the internet: the bot long-polls Telegram, so it needs no domain.
+name: octopos-helm-bot
+
+services:
+  helm-bot:
+    build:
+      context: ..
+      dockerfile: bot/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATA_FILE: /data/bot.json
+      PORT: "8787"
+    volumes:
+      - helm_bot_data:/data
+    networks:
+      - kdsx
+
+volumes:
+  helm_bot_data:
+
+networks:
+  kdsx:
+    external: true

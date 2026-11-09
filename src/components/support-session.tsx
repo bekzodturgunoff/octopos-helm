@@ -6,6 +6,7 @@ import {Button, Tag} from "@yeahuz/kdsx-react";
 import {Eye, ShieldAlert} from "lucide-react";
 import {endSupportSessionMutation, listSupportSessionsOptions, type SignedInOperator, type SupportSession} from "@/api";
 import {formatDateTime} from "@/lib/format";
+import {can} from "@/permission";
 
 function useMinutesLeft(expiresAt: string | undefined) {
   // The tick only re-renders; the time is read fresh each render, so every place that shows the
@@ -32,7 +33,7 @@ function useEndSession() {
  */
 export function ActiveSessionBanner({user}: {user: SignedInOperator}) {
   let {t} = useTranslation();
-  let {data} = useQuery({...listSupportSessionsOptions({query: {active: true, operatorID: user.id}}), refetchInterval: 30_000});
+  let {data} = useQuery({...listSupportSessionsOptions({query: {active: true, operatorID: user.id}}), refetchInterval: 30_000, enabled: can(user, "client.impersonate")});
   let session = data?.sessions[0];
   let left = useMinutesLeft(session?.expiresAt);
   let end = useEndSession();

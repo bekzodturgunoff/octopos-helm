@@ -16,7 +16,7 @@ importers:
         version: 1.170.46(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@yeahuz/kdsx-react':
         specifier: ^0.3.23
-        version: 0.3.23(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(barcode-detector@3.2.3(@types/emscripten@1.41.6))(maplibre-gl@6.16.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rollup@4.68.0)
+        version: 0.3.23(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(barcode-detector@3.2.3(@types/emscripten@1.41.6))(maplibre-gl@6.9.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rollup@4.68.0)
       '@yeahuz/kdsx-tailwind':
         specifier: ^0.0.24
         version: 0.0.24
@@ -47,6 +47,9 @@ importers:
       lucide-react:
         specifier: ^0.487.0
         version: 0.487.0(react@18.3.1)
+      maplibre-gl:
+        specifier: 6.9.1
+        version: 6.9.1
       qrcode:
         specifier: 1.5.4
         version: 1.5.4
@@ -2090,8 +2093,8 @@ packages:
   magic-string@1.4.5:
     resolution: {integrity: sha512-oLLC2+YvQUfAa+vxoufE/yc1icb87M9iXIRqAoR/2EhE/8cb3SF/+Gi0c2By1B+5Vz2e2vQtUvHiu1+63Znh+w==}
 
-  maplibre-gl@6.16.0:
-    resolution: {integrity: sha512-gApO66EMtoDZuio680RUBvskR7ahFd/NNhLN4tBAs+Y7FeT4gQV8zVFgYVMRmFxQznOEzecW19w6xOd9XjZjiA==}
+  maplibre-gl@6.9.1:
+    resolution: {integrity: sha512-piG2jNSq7crSTzj67UWDlTaxDjWvhFpfubZUuaofmaMcQKWw+kYn7mCfeh6S/Egr8+q8prBWcDqEaa6DdIQ6pw==}
     engines: {node: '>=16.14.0', npm: '>=8.1.0'}
 
   markdown-it@15.0.3:
@@ -3010,29 +3013,23 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  '@mapbox/jsonlint-lines-primitives@2.0.3':
-    optional: true
+  '@mapbox/jsonlint-lines-primitives@2.0.3': {}
 
-  '@mapbox/point-geometry@1.1.0':
-    optional: true
+  '@mapbox/point-geometry@1.1.0': {}
 
-  '@mapbox/tiny-sdf@2.3.0':
-    optional: true
+  '@mapbox/tiny-sdf@2.3.0': {}
 
-  '@mapbox/unitbezier@1.0.0':
-    optional: true
+  '@mapbox/unitbezier@1.0.0': {}
 
   '@mapbox/vector-tile@3.0.0':
     dependencies:
       '@mapbox/point-geometry': 1.1.0
       '@types/geojson': 7946.0.16
       pbf: 5.1.2
-    optional: true
 
   '@maplibre/geojson-vt@6.3.0':
     dependencies:
       kdbush: 4.1.0
-    optional: true
 
   '@maplibre/maplibre-gl-style-spec@26.5.1':
     dependencies:
@@ -3042,19 +3039,16 @@ snapshots:
       minimist: 1.2.8
       quickselect: 3.0.0
       tinyqueue: 3.0.0
-    optional: true
 
   '@maplibre/mlt@1.3.0':
     dependencies:
       '@mapbox/point-geometry': 1.1.0
-    optional: true
 
   '@maplibre/vt-pbf@4.3.3':
     dependencies:
       '@mapbox/point-geometry': 1.1.0
       '@types/geojson': 7946.0.16
       pbf: 5.1.2
-    optional: true
 
   '@point-of-sale/barcode-parser@1.0.4(rollup@4.68.0)':
     dependencies:
@@ -3928,8 +3922,7 @@ snapshots:
 
   '@types/estree@1.0.10': {}
 
-  '@types/geojson@7946.0.16':
-    optional: true
+  '@types/geojson@7946.0.16': {}
 
   '@types/json-schema@7.0.15': {}
 
@@ -4064,7 +4057,7 @@ snapshots:
     transitivePeerDependencies:
       - rollup
 
-  '@yeahuz/kdsx-react@0.3.23(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(barcode-detector@3.2.3(@types/emscripten@1.41.6))(maplibre-gl@6.16.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rollup@4.68.0)':
+  '@yeahuz/kdsx-react@0.3.23(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(barcode-detector@3.2.3(@types/emscripten@1.41.6))(maplibre-gl@6.9.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rollup@4.68.0)':
     dependencies:
       '@radix-ui/react-alert-dialog': 1.1.23(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@radix-ui/react-dialog': 1.1.23(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -4088,7 +4081,7 @@ snapshots:
       vaul: 1.1.2(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
     optionalDependencies:
       barcode-detector: 3.2.3(@types/emscripten@1.41.6)
-      maplibre-gl: 6.16.0
+      maplibre-gl: 6.9.1
     transitivePeerDependencies:
       - '@types/react'
       - '@types/react-dom'
@@ -4152,7 +4145,6 @@ snapshots:
   bidi-js@1.1.0:
     dependencies:
       require-from-string: 2.0.2
-    optional: true
 
   brace-expansion@1.1.21:
     dependencies:
@@ -4276,8 +4268,7 @@ snapshots:
 
   dijkstrajs@1.0.3: {}
 
-  earcut@3.2.4:
-    optional: true
+  earcut@3.2.4: {}
 
   echarts@5.6.0:
     dependencies:
@@ -4449,8 +4440,7 @@ snapshots:
 
   get-nonce@1.0.1: {}
 
-  gl-matrix@3.4.4:
-    optional: true
+  gl-matrix@3.4.4: {}
 
   glob-parent@6.0.2:
     dependencies:
@@ -4541,13 +4531,11 @@ snapshots:
 
   json-stable-stringify-without-jsonify@1.0.1: {}
 
-  json-stringify-pretty-compact@4.0.0:
-    optional: true
+  json-stringify-pretty-compact@4.0.0: {}
 
   json5@2.2.3: {}
 
-  kdbush@4.1.0:
-    optional: true
+  kdbush@4.1.0: {}
 
   keyv@4.5.4:
     dependencies:
@@ -4645,7 +4633,7 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.6.0
 
-  maplibre-gl@6.16.0:
+  maplibre-gl@6.9.1:
     dependencies:
       '@mapbox/point-geometry': 1.1.0
       '@mapbox/tiny-sdf': 2.3.0
@@ -4665,7 +4653,6 @@ snapshots:
       potpack: 2.1.0
       quickselect: 3.0.0
       tinyqueue: 3.0.0
-    optional: true
 
   markdown-it@15.0.3:
     dependencies:
@@ -4686,13 +4673,11 @@ snapshots:
     dependencies:
       brace-expansion: 1.1.21
 
-  minimist@1.2.8:
-    optional: true
+  minimist@1.2.8: {}
 
   ms@2.1.3: {}
 
-  murmurhash-js@1.0.0:
-    optional: true
+  murmurhash-js@1.0.0: {}
 
   nanoid@3.3.20: {}
 
@@ -4746,7 +4731,6 @@ snapshots:
   pbf@5.1.2:
     dependencies:
       resolve-protobuf-schema: 2.1.0
-    optional: true
 
   picocolors@1.1.1: {}
 
@@ -4760,8 +4744,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.2
 
-  potpack@2.1.0:
-    optional: true
+  potpack@2.1.0: {}
 
   prelude-ls@1.2.1: {}
 
@@ -4771,8 +4754,7 @@ snapshots:
 
   prettier@3.9.10: {}
 
-  protocol-buffers-schema@3.6.1:
-    optional: true
+  protocol-buffers-schema@3.6.1: {}
 
   punycode.js@2.3.1: {}
 
@@ -4784,8 +4766,7 @@ snapshots:
       pngjs: 5.0.0
       yargs: 15.4.1
 
-  quickselect@3.0.0:
-    optional: true
+  quickselect@3.0.0: {}
 
   randombytes@2.1.0:
     dependencies:
@@ -4859,8 +4840,7 @@ snapshots:
 
   require-directory@2.1.1: {}
 
-  require-from-string@2.0.2:
-    optional: true
+  require-from-string@2.0.2: {}
 
   require-main-filename@2.0.0: {}
 
@@ -4873,7 +4853,6 @@ snapshots:
   resolve-protobuf-schema@2.1.0:
     dependencies:
       protocol-buffers-schema: 3.6.1
-    optional: true
 
   resolve@1.22.14:
     dependencies:
@@ -4994,8 +4973,7 @@ snapshots:
       fdir: 6.5.0(picomatch@4.0.7)
       picomatch: 4.0.7
 
-  tinyqueue@3.0.0:
-    optional: true
+  tinyqueue@3.0.0: {}
 
   tr46@0.0.3: {}
 

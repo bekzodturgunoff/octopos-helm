@@ -21,6 +21,7 @@ import {
   type SubscriptionStatus,
 } from "@/api";
 import {PageHeader} from "@/components/page-header";
+import {ClientsViews} from "@/components/clients-views";
 import {FilterSelect} from "@/components/filter-bar";
 import {HealthBadge} from "@/components/health-badge";
 import {OnboardingProgress} from "@/components/onboarding";
@@ -90,6 +91,7 @@ function Clients() {
         </Can>
         <ExportButton name="clients" load={() => listClients({query: {...search, page: 1, pageSize: 1000}}).then((page) => page.items)} columns={CLIENT_COLUMNS} />
       </PageHeader>
+      <ClientsViews value="list" />
       <div className="flex flex-col gap-3">
         <Input
           size="lg"

@@ -14,13 +14,12 @@ import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as FlowsRouteImport } from './routes/flows'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthIndexRouteImport } from './routes/_auth.index'
-import { Route as AuthAnnouncementsRouteImport } from './routes/_auth.announcements'
-import { Route as AuthReportsRouteImport } from './routes/_auth.reports'
 import { Route as AuthTasksRouteImport } from './routes/_auth.tasks'
 import { Route as FlowsNewClientRouteImport } from './routes/flows.new-client'
 import { Route as FlowsNewRoleRouteImport } from './routes/flows.new-role'
 import { Route as AuthAdministrationIndexRouteImport } from './routes/_auth.administration.index'
 import { Route as AuthAdministrationActivityRouteImport } from './routes/_auth.administration.activity'
+import { Route as AuthAdministrationAnnouncementsRouteImport } from './routes/_auth.administration.announcements'
 import { Route as AuthAdministrationNotificationsRouteImport } from './routes/_auth.administration.notifications'
 import { Route as AuthAdministrationTeamRouteImport } from './routes/_auth.administration.team'
 import { Route as AuthBillingIndexRouteImport } from './routes/_auth.billing.index'
@@ -29,9 +28,11 @@ import { Route as AuthBillingPaymentChasingRouteImport } from './routes/_auth.bi
 import { Route as AuthBillingPaymentsRouteImport } from './routes/_auth.billing.payments'
 import { Route as AuthBillingPlansRouteImport } from './routes/_auth.billing.plans'
 import { Route as AuthBillingRenewalsRouteImport } from './routes/_auth.billing.renewals'
+import { Route as AuthBillingReportsRouteImport } from './routes/_auth.billing.reports'
 import { Route as AuthBillingWinBackRouteImport } from './routes/_auth.billing.win-back'
 import { Route as AuthClientsIndexRouteImport } from './routes/_auth.clients.index'
 import { Route as AuthClientsIdRouteImport } from './routes/_auth.clients.$id'
+import { Route as AuthClientsMapRouteImport } from './routes/_auth.clients.map'
 import { Route as AuthFleetIndexRouteImport } from './routes/_auth.fleet.index'
 import { Route as AuthFleetIdRouteImport } from './routes/_auth.fleet.$id'
 import { Route as AuthFleetReleasesRouteImport } from './routes/_auth.fleet.releases'
@@ -75,16 +76,6 @@ const AuthIndexRoute = AuthIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthRoute,
 } as any)
-const AuthAnnouncementsRoute = AuthAnnouncementsRouteImport.update({
-  id: '/announcements',
-  path: '/announcements',
-  getParentRoute: () => AuthRoute,
-} as any)
-const AuthReportsRoute = AuthReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => AuthRoute,
-} as any)
 const AuthTasksRoute = AuthTasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
@@ -109,6 +100,12 @@ const AuthAdministrationActivityRoute =
   AuthAdministrationActivityRouteImport.update({
     id: '/administration/activity',
     path: '/administration/activity',
+    getParentRoute: () => AuthRoute,
+  } as any)
+const AuthAdministrationAnnouncementsRoute =
+  AuthAdministrationAnnouncementsRouteImport.update({
+    id: '/administration/announcements',
+    path: '/administration/announcements',
     getParentRoute: () => AuthRoute,
   } as any)
 const AuthAdministrationNotificationsRoute =
@@ -153,6 +150,11 @@ const AuthBillingRenewalsRoute = AuthBillingRenewalsRouteImport.update({
   path: '/billing/renewals',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthBillingReportsRoute = AuthBillingReportsRouteImport.update({
+  id: '/billing/reports',
+  path: '/billing/reports',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthBillingWinBackRoute = AuthBillingWinBackRouteImport.update({
   id: '/billing/win-back',
   path: '/billing/win-back',
@@ -166,6 +168,11 @@ const AuthClientsIndexRoute = AuthClientsIndexRouteImport.update({
 const AuthClientsIdRoute = AuthClientsIdRouteImport.update({
   id: '/clients/$id',
   path: '/clients/$id',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthClientsMapRoute = AuthClientsMapRouteImport.update({
+  id: '/clients/map',
+  path: '/clients/map',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthFleetIndexRoute = AuthFleetIndexRouteImport.update({
@@ -271,12 +278,11 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthIndexRoute
   '/flows': typeof FlowsRouteWithChildren
   '/login': typeof LoginRoute
-  '/announcements': typeof AuthAnnouncementsRoute
-  '/reports': typeof AuthReportsRoute
   '/tasks': typeof AuthTasksRoute
   '/flows/new-client': typeof FlowsNewClientRoute
   '/flows/new-role': typeof FlowsNewRoleRouteWithChildren
   '/administration/activity': typeof AuthAdministrationActivityRoute
+  '/administration/announcements': typeof AuthAdministrationAnnouncementsRoute
   '/administration/notifications': typeof AuthAdministrationNotificationsRoute
   '/administration/team': typeof AuthAdministrationTeamRoute
   '/billing/overdue': typeof AuthBillingOverdueRoute
@@ -284,8 +290,10 @@ export interface FileRoutesByFullPath {
   '/billing/payments': typeof AuthBillingPaymentsRoute
   '/billing/plans': typeof AuthBillingPlansRoute
   '/billing/renewals': typeof AuthBillingRenewalsRoute
+  '/billing/reports': typeof AuthBillingReportsRoute
   '/billing/win-back': typeof AuthBillingWinBackRoute
   '/clients/$id': typeof AuthClientsIdRoute
+  '/clients/map': typeof AuthClientsMapRoute
   '/fleet/$id': typeof AuthFleetIdRoute
   '/fleet/releases': typeof AuthFleetReleasesRoute
   '/settings/appearance': typeof AuthSettingsAppearanceRoute
@@ -312,12 +320,11 @@ export interface FileRoutesByTo {
   '/403': typeof R403Route
   '/flows': typeof FlowsRouteWithChildren
   '/login': typeof LoginRoute
-  '/announcements': typeof AuthAnnouncementsRoute
-  '/reports': typeof AuthReportsRoute
   '/tasks': typeof AuthTasksRoute
   '/flows/new-client': typeof FlowsNewClientRoute
   '/': typeof AuthIndexRoute
   '/administration/activity': typeof AuthAdministrationActivityRoute
+  '/administration/announcements': typeof AuthAdministrationAnnouncementsRoute
   '/administration/notifications': typeof AuthAdministrationNotificationsRoute
   '/administration/team': typeof AuthAdministrationTeamRoute
   '/billing/overdue': typeof AuthBillingOverdueRoute
@@ -325,8 +332,10 @@ export interface FileRoutesByTo {
   '/billing/payments': typeof AuthBillingPaymentsRoute
   '/billing/plans': typeof AuthBillingPlansRoute
   '/billing/renewals': typeof AuthBillingRenewalsRoute
+  '/billing/reports': typeof AuthBillingReportsRoute
   '/billing/win-back': typeof AuthBillingWinBackRoute
   '/clients/$id': typeof AuthClientsIdRoute
+  '/clients/map': typeof AuthClientsMapRoute
   '/fleet/$id': typeof AuthFleetIdRoute
   '/fleet/releases': typeof AuthFleetReleasesRoute
   '/settings/appearance': typeof AuthSettingsAppearanceRoute
@@ -355,13 +364,12 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/flows': typeof FlowsRouteWithChildren
   '/login': typeof LoginRoute
-  '/_auth/announcements': typeof AuthAnnouncementsRoute
-  '/_auth/reports': typeof AuthReportsRoute
   '/_auth/tasks': typeof AuthTasksRoute
   '/flows/new-client': typeof FlowsNewClientRoute
   '/flows/new-role': typeof FlowsNewRoleRouteWithChildren
   '/_auth/': typeof AuthIndexRoute
   '/_auth/administration/activity': typeof AuthAdministrationActivityRoute
+  '/_auth/administration/announcements': typeof AuthAdministrationAnnouncementsRoute
   '/_auth/administration/notifications': typeof AuthAdministrationNotificationsRoute
   '/_auth/administration/team': typeof AuthAdministrationTeamRoute
   '/_auth/billing/overdue': typeof AuthBillingOverdueRoute
@@ -369,8 +377,10 @@ export interface FileRoutesById {
   '/_auth/billing/payments': typeof AuthBillingPaymentsRoute
   '/_auth/billing/plans': typeof AuthBillingPlansRoute
   '/_auth/billing/renewals': typeof AuthBillingRenewalsRoute
+  '/_auth/billing/reports': typeof AuthBillingReportsRoute
   '/_auth/billing/win-back': typeof AuthBillingWinBackRoute
   '/_auth/clients/$id': typeof AuthClientsIdRoute
+  '/_auth/clients/map': typeof AuthClientsMapRoute
   '/_auth/fleet/$id': typeof AuthFleetIdRoute
   '/_auth/fleet/releases': typeof AuthFleetReleasesRoute
   '/_auth/settings/appearance': typeof AuthSettingsAppearanceRoute
@@ -400,12 +410,11 @@ export interface FileRouteTypes {
     | '/'
     | '/flows'
     | '/login'
-    | '/announcements'
-    | '/reports'
     | '/tasks'
     | '/flows/new-client'
     | '/flows/new-role'
     | '/administration/activity'
+    | '/administration/announcements'
     | '/administration/notifications'
     | '/administration/team'
     | '/billing/overdue'
@@ -413,8 +422,10 @@ export interface FileRouteTypes {
     | '/billing/payments'
     | '/billing/plans'
     | '/billing/renewals'
+    | '/billing/reports'
     | '/billing/win-back'
     | '/clients/$id'
+    | '/clients/map'
     | '/fleet/$id'
     | '/fleet/releases'
     | '/settings/appearance'
@@ -441,12 +452,11 @@ export interface FileRouteTypes {
     | '/403'
     | '/flows'
     | '/login'
-    | '/announcements'
-    | '/reports'
     | '/tasks'
     | '/flows/new-client'
     | '/'
     | '/administration/activity'
+    | '/administration/announcements'
     | '/administration/notifications'
     | '/administration/team'
     | '/billing/overdue'
@@ -454,8 +464,10 @@ export interface FileRouteTypes {
     | '/billing/payments'
     | '/billing/plans'
     | '/billing/renewals'
+    | '/billing/reports'
     | '/billing/win-back'
     | '/clients/$id'
+    | '/clients/map'
     | '/fleet/$id'
     | '/fleet/releases'
     | '/settings/appearance'
@@ -483,13 +495,12 @@ export interface FileRouteTypes {
     | '/_auth'
     | '/flows'
     | '/login'
-    | '/_auth/announcements'
-    | '/_auth/reports'
     | '/_auth/tasks'
     | '/flows/new-client'
     | '/flows/new-role'
     | '/_auth/'
     | '/_auth/administration/activity'
+    | '/_auth/administration/announcements'
     | '/_auth/administration/notifications'
     | '/_auth/administration/team'
     | '/_auth/billing/overdue'
@@ -497,8 +508,10 @@ export interface FileRouteTypes {
     | '/_auth/billing/payments'
     | '/_auth/billing/plans'
     | '/_auth/billing/renewals'
+    | '/_auth/billing/reports'
     | '/_auth/billing/win-back'
     | '/_auth/clients/$id'
+    | '/_auth/clients/map'
     | '/_auth/fleet/$id'
     | '/_auth/fleet/releases'
     | '/_auth/settings/appearance'
@@ -566,20 +579,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthIndexRouteImport
       parentRoute: typeof AuthRoute
     }
-    '/_auth/announcements': {
-      id: '/_auth/announcements'
-      path: '/announcements'
-      fullPath: '/announcements'
-      preLoaderRoute: typeof AuthAnnouncementsRouteImport
-      parentRoute: typeof AuthRoute
-    }
-    '/_auth/reports': {
-      id: '/_auth/reports'
-      path: '/reports'
-      fullPath: '/reports'
-      preLoaderRoute: typeof AuthReportsRouteImport
-      parentRoute: typeof AuthRoute
-    }
     '/_auth/tasks': {
       id: '/_auth/tasks'
       path: '/tasks'
@@ -613,6 +612,13 @@ declare module '@tanstack/react-router' {
       path: '/administration/activity'
       fullPath: '/administration/activity'
       preLoaderRoute: typeof AuthAdministrationActivityRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/administration/announcements': {
+      id: '/_auth/administration/announcements'
+      path: '/administration/announcements'
+      fullPath: '/administration/announcements'
+      preLoaderRoute: typeof AuthAdministrationAnnouncementsRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_auth/administration/notifications': {
@@ -671,6 +677,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthBillingRenewalsRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/billing/reports': {
+      id: '/_auth/billing/reports'
+      path: '/billing/reports'
+      fullPath: '/billing/reports'
+      preLoaderRoute: typeof AuthBillingReportsRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/billing/win-back': {
       id: '/_auth/billing/win-back'
       path: '/billing/win-back'
@@ -690,6 +703,13 @@ declare module '@tanstack/react-router' {
       path: '/clients/$id'
       fullPath: '/clients/$id'
       preLoaderRoute: typeof AuthClientsIdRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/clients/map': {
+      id: '/_auth/clients/map'
+      path: '/clients/map'
+      fullPath: '/clients/map'
+      preLoaderRoute: typeof AuthClientsMapRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_auth/fleet/': {
@@ -822,11 +842,10 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthRouteChildren {
-  AuthAnnouncementsRoute: typeof AuthAnnouncementsRoute
-  AuthReportsRoute: typeof AuthReportsRoute
   AuthTasksRoute: typeof AuthTasksRoute
   AuthIndexRoute: typeof AuthIndexRoute
   AuthAdministrationActivityRoute: typeof AuthAdministrationActivityRoute
+  AuthAdministrationAnnouncementsRoute: typeof AuthAdministrationAnnouncementsRoute
   AuthAdministrationNotificationsRoute: typeof AuthAdministrationNotificationsRoute
   AuthAdministrationTeamRoute: typeof AuthAdministrationTeamRoute
   AuthBillingOverdueRoute: typeof AuthBillingOverdueRoute
@@ -834,8 +853,10 @@ interface AuthRouteChildren {
   AuthBillingPaymentsRoute: typeof AuthBillingPaymentsRoute
   AuthBillingPlansRoute: typeof AuthBillingPlansRoute
   AuthBillingRenewalsRoute: typeof AuthBillingRenewalsRoute
+  AuthBillingReportsRoute: typeof AuthBillingReportsRoute
   AuthBillingWinBackRoute: typeof AuthBillingWinBackRoute
   AuthClientsIdRoute: typeof AuthClientsIdRoute
+  AuthClientsMapRoute: typeof AuthClientsMapRoute
   AuthFleetIdRoute: typeof AuthFleetIdRoute
   AuthFleetReleasesRoute: typeof AuthFleetReleasesRoute
   AuthSettingsAppearanceRoute: typeof AuthSettingsAppearanceRoute
@@ -857,11 +878,10 @@ interface AuthRouteChildren {
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
-  AuthAnnouncementsRoute: AuthAnnouncementsRoute,
-  AuthReportsRoute: AuthReportsRoute,
   AuthTasksRoute: AuthTasksRoute,
   AuthIndexRoute: AuthIndexRoute,
   AuthAdministrationActivityRoute: AuthAdministrationActivityRoute,
+  AuthAdministrationAnnouncementsRoute: AuthAdministrationAnnouncementsRoute,
   AuthAdministrationNotificationsRoute: AuthAdministrationNotificationsRoute,
   AuthAdministrationTeamRoute: AuthAdministrationTeamRoute,
   AuthBillingOverdueRoute: AuthBillingOverdueRoute,
@@ -869,8 +889,10 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthBillingPaymentsRoute: AuthBillingPaymentsRoute,
   AuthBillingPlansRoute: AuthBillingPlansRoute,
   AuthBillingRenewalsRoute: AuthBillingRenewalsRoute,
+  AuthBillingReportsRoute: AuthBillingReportsRoute,
   AuthBillingWinBackRoute: AuthBillingWinBackRoute,
   AuthClientsIdRoute: AuthClientsIdRoute,
+  AuthClientsMapRoute: AuthClientsMapRoute,
   AuthFleetIdRoute: AuthFleetIdRoute,
   AuthFleetReleasesRoute: AuthFleetReleasesRoute,
   AuthSettingsAppearanceRoute: AuthSettingsAppearanceRoute,

@@ -53,7 +53,8 @@ export type Capability =
   | "team.write"
   | "role.read"
   | "role.write"
-  | "audit.read";
+  | "audit.read"
+  | "report.read";
 
 /**
  * How far a permission reaches — Helm's version of the dash's tenant/location/own. "assigned" limits
@@ -296,7 +297,35 @@ export type ClientLocation = {
   id: string;
   name: string;
   address?: string;
+  /** Where the branch is, as the client set it in their dash for delivery. Absent until they do. */
+  latitude?: number;
+  longitude?: number;
+  /** The branch's own phone, when it has one. */
+  phone?: string;
   installations: number;
+};
+
+/** One branch on the map: the place, whose it is, and the state of its tills. */
+export type ClientPlace = {
+  clientID: string;
+  clientName: string;
+  slug: string;
+  clientStatus: ClientStatus;
+  grade: HealthGrade;
+  balanceDue: Money;
+  accountManager?: OperatorRef;
+  ownerName: string;
+  ownerPhone?: string;
+  city?: string;
+  location: ClientLocation & {latitude: number; longitude: number};
+  /** This branch's installations only, counted the way the client's own are. */
+  installations: ClientInstallations;
+};
+
+export type ClientPlaces = {
+  items: ClientPlace[];
+  /** Branches with no point set yet, which the map cannot draw. */
+  unplaced: number;
 };
 
 /** The app support connects with. "other" is anything Helm has no link for. */
@@ -879,11 +908,50 @@ export type TeamNotificationSettings = {
   updatedBy?: OperatorRef;
 };
 
-/** One operator's own messages. */
+/** One operator's own messages. They go to the Telegram account linked through @octopos_helm_bot. */
 export type MyNotificationSettings = {
   digest: {enabled: boolean; time: string; days: "weekdays" | "everyday"};
-  telegramUsername?: string;
   includes: {tasks: boolean; renewals: boolean; overdue: boolean; fleet: boolean; myClientsOnly: boolean};
+};
+
+/**
+ * The operator's Telegram, linked by pressing Start on a one-time link from Helm — nobody types a
+ * username, so nobody can point their alerts at someone else's account.
+ */
+export type TelegramLink = {
+  connected: boolean;
+  username?: string;
+  firstName?: string;
+  linkedAt?: string;
+};
+
+/** A one-time link: t.me/octopos_helm_bot?start=<code>. Lasts ten minutes and works once. */
+export type TelegramLinkCode = {code: string; url: string; expiresAt: string};
+
+/** The bot's side of the link: it hands over the code and the Telegram account that pressed Start. */
+export type RedeemTelegramLinkData = {code: string; telegramUserID: number; chatID: number; username?: string; firstName?: string; languageCode?: string};
+
+/**
+ * What the bot gets back: a session for that operator, used as their Bearer on every call the bot
+ * makes for them — so the bot can only ever do what their role allows. Ended by unlink, by
+ * disabling the operator, or by a role change the server treats as a sign-out.
+ */
+export type RedeemTelegramLinkResult = {sessionID: string; operator: SignedInOperator};
+
+/**
+ * What the server sends the bot to deliver (POST <bot>/events). `to` is the team group (its chatID
+ * from the team notification settings), or one operator's linked chat. The bot formats it and adds buttons.
+ */
+export type BotEvent = {
+  event: AlertEvent | "taskAssigned" | "digest";
+  to: {team: true; chatID: string} | {operatorID: string};
+  at: string;
+  client?: {id: string; name: string; slug: string};
+  node?: {nodeID: string; tenantID: string; restartCount?: number; lastExitCode?: number; offlineSince?: string};
+  invoice?: {id: string; number: string; amount: Money; daysOverdue?: number};
+  task?: {id: string; title: string; dueAt?: string; createdBy?: OperatorRef};
+  /** The digest, already built from the operator's settings; the same text as notifications.me.preview. */
+  text?: string;
 };
 
 // ---- Announcements ------------------------------------------------------------------------------

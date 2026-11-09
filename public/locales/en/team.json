@@ -20,6 +20,7 @@
   "alertHint.promiseBroken": "The promised day passed and the invoice is still open.",
   "alertHint.trialEnding": "Three days before, with no card on file.",
   "alertsSaved": "Team alerts saved",
+  "announcementsSubtitle": "Banners in the clients' dash, for everyone or by plan",
   "anyone": "Anyone",
   "chainBroken": "The chain breaks at {{at}} — an entry was changed or removed.",
   "chainOk": "Log intact — {{count}} entries, each chained to the one before. Nobody, owners included, can edit or delete an entry.",

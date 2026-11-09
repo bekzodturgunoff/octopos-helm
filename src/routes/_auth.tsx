@@ -1,6 +1,6 @@
 import {createFileRoute, Link, Outlet, redirect, useMatches} from "@tanstack/react-router";
 import {Button, Tag, Tooltip} from "@yeahuz/kdsx-react";
-import {Menu, X, House, BadgeDollarSign, ChevronRight, ArrowLeft, Search, Users, Server, ListTodo, Megaphone, Building2, FileChartColumn} from "lucide-react";
+import {Menu, X, House, BadgeDollarSign, ChevronRight, ArrowLeft, Search, Users, Server, ListTodo, Building2} from "lucide-react";
 import {useQuery} from "@tanstack/react-query";
 import {NavLink} from "@/components/nav-link";
 import {CommandPalette} from "@/components/command-palette";
@@ -10,7 +10,9 @@ import {Show} from "@yeahuz/kdsx-react";
 import {useTranslation} from "react-i18next";
 import {useTheme} from "@/theme-provider";
 import {ApiError, getSignedInOperatorOptions, getTaskCountsOptions, SignedInOperator} from "@/api";
-import {Can, CanAny} from "@/permission";
+import {Can, CanAny, can, canAny} from "@/permission";
+import type {TFunction} from "i18next";
+import type {LucideIcon} from "lucide-react";
 import {getSession} from "@/constants";
 import {ActiveSessionBanner} from "@/components/support-session";
 import {Shortcuts} from "@/components/shortcuts";
@@ -45,6 +47,20 @@ export let Route = createFileRoute("/_auth")({
 let navButtonClass = "text-on-surface hover:bg-neutral w-full justify-start font-normal";
 let navLinkClass = "flex items-center gap-4";
 let navActiveProps = {className: "font-semibold text-on-surface-accent"};
+// The menu is the areas of work, not the pages: a new page goes into the area it belongs to (a card
+// on its hub, or a tab), and ⌘K finds it. A new item here means a new kind of work, and there
+// should never be more than six.
+type NavItem = {to: "/" | "/clients" | "/billing" | "/fleet"; label: string; icon: LucideIcon; show: boolean};
+
+function navItems(user: SignedInOperator, t: TFunction): NavItem[] {
+  return [
+    {to: "/" as const, label: t("common:overview", {defaultValue: "Overview"}), icon: House, show: true},
+    {to: "/clients" as const, label: t("clients:clients", {defaultValue: "Clients"}), icon: Users, show: can(user, "client.read")},
+    {to: "/billing" as const, label: t("billing:billing", {defaultValue: "Billing"}), icon: BadgeDollarSign, show: canAny(user, "billing.read", "report.read")},
+    {to: "/fleet" as const, label: t("fleet:fleet", {defaultValue: "Fleet"}), icon: Server, show: can(user, "fleet.read")},
+  ].filter((item) => item.show);
+}
+
 let barLinkClass = "hover:bg-surface-300 press-row active:bg-surface-400 relative flex h-16 w-full flex-col items-center justify-center gap-1";
 
 function Layout() {
@@ -94,77 +110,27 @@ function Layout() {
         </div>
         <nav className="min-h-0 w-full flex-1 overflow-y-auto">
           <ul className="flex flex-col gap-1">
-            <li>
-              <Button color="neutral" variant="ghost" size="lg" className={navButtonClass} asChild>
-                <NavLink to="/" className={navLinkClass} activeProps={navActiveProps} activeOptions={{exact: true}}>
-                  <House className="shrink-0" size={16} /> <span>{t("common:overview", {defaultValue: "Overview"})}</span>
-                </NavLink>
-              </Button>
-            </li>
-            <Can subject={user} capability="client.read">
-              <li>
+            {navItems(user, t).map((item) => (
+              <li key={item.to}>
                 <Button color="neutral" variant="ghost" size="lg" className={navButtonClass} asChild>
-                  <NavLink to="/clients" className={navLinkClass} activeProps={navActiveProps}>
-                    <Users className="shrink-0" size={16} /> <span>{t("clients:clients", {defaultValue: "Clients"})}</span>
+                  <NavLink to={item.to} className={navLinkClass} activeProps={navActiveProps} activeOptions={{exact: item.to === "/"}}>
+                    <item.icon className="shrink-0" size={16} /> <span>{item.label}</span>
                   </NavLink>
                 </Button>
               </li>
-            </Can>
-            <Can subject={user} capability="billing.read">
-              <li>
-                <Button color="neutral" variant="ghost" size="lg" className={navButtonClass} asChild>
-                  <NavLink to="/billing" className={navLinkClass} activeProps={navActiveProps}>
-                    <BadgeDollarSign className="shrink-0" size={16} /> <span>{t("billing:billing", {defaultValue: "Billing"})}</span>
-                  </NavLink>
-                </Button>
-              </li>
-            </Can>
-            <Can subject={user} capability="billing.read">
-              <li>
-                <Button color="neutral" variant="ghost" size="lg" className={navButtonClass} asChild>
-                  <NavLink to="/reports" className={navLinkClass} activeProps={navActiveProps}>
-                    <FileChartColumn className="shrink-0" size={16} /> <span>{t("reports:reports", {defaultValue: "Reports"})}</span>
-                  </NavLink>
-                </Button>
-              </li>
-            </Can>
-            <Can subject={user} capability="fleet.read">
-              <li>
-                <Button color="neutral" variant="ghost" size="lg" className={navButtonClass} asChild>
-                  <NavLink to="/fleet" className={navLinkClass} activeProps={navActiveProps}>
-                    <Server className="shrink-0" size={16} /> <span>{t("fleet:fleet", {defaultValue: "Fleet"})}</span>
-                  </NavLink>
-                </Button>
-              </li>
-            </Can>
-            <li>
-              <Button color="neutral" variant="ghost" size="lg" className={navButtonClass} asChild>
-                <NavLink to="/tasks" className={navLinkClass} activeProps={navActiveProps}>
-                  <ListTodo className="shrink-0" size={16} /> <span>{t("common:tasks", {defaultValue: "Tasks"})}</span>
-                  {dueCount ? <span className="bg-accent text-accent-emphasis ml-auto rounded-full px-2 text-xs font-semibold tabular-nums">{dueCount}</span> : null}
-                </NavLink>
-              </Button>
-            </li>
-            <Can subject={user} capability="announcement.write">
-              <li>
-                <Button color="neutral" variant="ghost" size="lg" className={navButtonClass} asChild>
-                  <NavLink to="/announcements" className={navLinkClass} activeProps={navActiveProps}>
-                    <Megaphone className="shrink-0" size={16} /> <span>{t("common:announcements", {defaultValue: "Announcements"})}</span>
-                  </NavLink>
-                </Button>
-              </li>
-            </Can>
-            <CanAny subject={user} capabilities={["team.read", "role.read", "audit.read", "client.read"]}>
-              <li>
-                <Button color="neutral" variant="ghost" size="lg" className={navButtonClass} asChild>
-                  <NavLink to="/administration" className={navLinkClass} activeProps={navActiveProps}>
-                    <Building2 className="shrink-0" size={16} /> <span>{t("team:administration", {defaultValue: "Administration"})}</span>
-                  </NavLink>
-                </Button>
-              </li>
-            </CanAny>
+            ))}
           </ul>
         </nav>
+        {/* Setting up the team is not daily work: it sits apart, at the bottom. */}
+        <CanAny subject={user} capabilities={["team.read", "role.read", "audit.read", "announcement.write"]}>
+          <div className="border-border-secondary mt-2 border-t pt-2 pb-2">
+            <Button color="neutral" variant="ghost" size="lg" className={navButtonClass} asChild>
+              <NavLink to="/administration" className={navLinkClass} activeProps={navActiveProps}>
+                <Building2 className="shrink-0" size={16} /> <span>{t("team:administration", {defaultValue: "Administration"})}</span>
+              </NavLink>
+            </Button>
+          </div>
+        </CanAny>
         {mock ? (
           <div className="border-border-secondary text-on-surface-secondary mb-4 rounded-lg border p-3 text-xs">
             {t("common:mockNotice", {defaultValue: "Demo data. Every change lives in this tab until it reloads. Set VITE_API_MOCK to empty to use the API."})}
@@ -249,14 +215,14 @@ function Layout() {
                 </NavLink>
               </li>
             </Can>
-            <Can subject={user} capability="billing.read">
+            <CanAny subject={user} capabilities={["billing.read", "report.read"]}>
               <li className="w-full">
                 <NavLink to="/billing" className={barLinkClass} activeProps={navActiveProps}>
                   <BadgeDollarSign size={16} />
                   <span className="text-sm">{t("billing:billing", {defaultValue: "Billing"})}</span>
                 </NavLink>
               </li>
-            </Can>
+            </CanAny>
             <Can subject={user} capability="fleet.read">
               <li className="w-full">
                 <NavLink to="/fleet" className={barLinkClass} activeProps={navActiveProps}>

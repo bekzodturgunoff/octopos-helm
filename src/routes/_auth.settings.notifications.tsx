@@ -1,12 +1,13 @@
 import {FormEvent, Suspense, useState} from "react";
 import {useMutation, useQuery, useQueryClient, useSuspenseQuery} from "@tanstack/react-query";
 import {createFileRoute} from "@tanstack/react-router";
-import {Button, ErrorAlert, Input, Label, Select, TimeInput} from "@yeahuz/kdsx-react";
+import {Button, ErrorAlert, Label, Select, TimeInput} from "@yeahuz/kdsx-react";
 import {useTranslation} from "react-i18next";
 import {getDigestPreviewOptions, getMyNotificationsOptions, sendTestNotificationMutation, updateMyNotificationsMutation, type MyNotificationSettings} from "@/api";
 import {Section} from "@/components/field";
 import {FormPageSkeleton} from "@/components/skeletons";
 import {useToast} from "@/components/toaster";
+import {TelegramConnect} from "@/components/telegram-connect";
 
 export let Route = createFileRoute("/_auth/settings/notifications")({
   beforeLoad: () => ({backLink: {to: "/settings"}}),
@@ -35,7 +36,7 @@ function MyNotifications() {
   });
   let test = useMutation({
     ...sendTestNotificationMutation(),
-    onSuccess: () => toast({tone: "success", title: t("settings:digestSent", {defaultValue: "Sent to {{who}} on Telegram", who: data.telegramUsername})}),
+    onSuccess: () => toast({tone: "success", title: t("settings:digestSentTelegram", {defaultValue: "Sent to your Telegram"})}),
     onError: (err) => toast({tone: "error", title: err.message}),
   });
   let include = (key: keyof MyNotificationSettings["includes"], label: string) => (
@@ -59,11 +60,7 @@ function MyNotifications() {
         </div>
         {save.error ? <ErrorAlert title={t("common:error", {defaultValue: "Error"})} message={save.error.message} /> : null}
         <Section title={t("settings:telegram", {defaultValue: "Your Telegram"})}>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="username">{t("settings:username", {defaultValue: "Username"})}</Label>
-            <Input id="username" placeholder="@username" value={draft.telegramUsername ?? ""} onChange={(e) => setDraft({...draft, telegramUsername: e.target.value || undefined})} />
-            <span className="text-on-surface-secondary text-xs">{t("settings:usernameHint", {defaultValue: "Then open @octopos_helm_bot and press Start, so it is allowed to write to you."})}</span>
-          </div>
+          <TelegramConnect />
         </Section>
         <Section title={t("settings:morningDigest", {defaultValue: "Morning digest"})}>
           <label className="flex items-center gap-2 text-sm">

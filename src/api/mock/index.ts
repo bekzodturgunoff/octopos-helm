@@ -3,12 +3,14 @@ import {randomSecret, sha256, verifyTotp} from "./totp";
 import type * as T from "../types";
 import {getSession} from "@/constants";
 import {appLabel, formatRemoteID, remoteApp, REMOTE_APPS} from "@/lib/remote-apps";
-import {DASH_DOMAIN, SLUG_PATTERN} from "@/lib/dash";
+import {DASH_DOMAIN, dashUrl, SLUG_PATTERN} from "@/lib/dash";
+import spec from "../../../api-spec/operator.yml?raw";
 import {
   activity,
   announcements,
   clients,
   computeHealth,
+  countInstallations,
   onboardingOf,
   onboardingSteps,
   daysFromNow,
@@ -431,6 +433,36 @@ let handlers: Record<string, Handler> = {
     if (!visibleTo(me, "client.read")(String(query.id))) fail(404, "CLIENT_NOT_FOUND", "No client with that id.");
     return findClient(query.id);
   },
+  "GET /operator.clients.places": ({me}) => {
+    let visible = visibleTo(me, "client.read");
+    let items: T.ClientPlace[] = [];
+    let unplaced = 0;
+    for (let c of clients.filter((c) => visible(c.id))) {
+      for (let location of c.locations) {
+        if (location.latitude == null || location.longitude == null) {
+          unplaced++;
+          continue;
+        }
+        let nodes = fleetNodes.filter((n) => n.tenantID === c.id && n.location?.id === location.id && !n.retiredAt);
+        items.push({
+          clientID: c.id,
+          clientName: c.name,
+          slug: c.slug,
+          clientStatus: c.status,
+          grade: c.health.grade,
+          balanceDue: c.balanceDue,
+          accountManager: c.accountManager,
+          ownerName: c.owner.name,
+          ownerPhone: c.owner.phone,
+          city: c.city,
+          location: {...location, latitude: location.latitude, longitude: location.longitude},
+          // Against the moment the demo's installations were made, as the client's own counts are.
+          installations: countInstallations(nodes, NOW),
+        });
+      }
+    }
+    return {items, unplaced} satisfies T.ClientPlaces;
+  },
   "GET /operator.clients.checkSlug": ({query}) => slugCheck(String(query.slug ?? "")),
   "POST /operator.clients.create": ({body, me}) => {
     let data = body as unknown as T.CreateClientData;
@@ -536,7 +568,7 @@ let handlers: Record<string, Handler> = {
     };
     supportSessions.unshift(session);
     log(me, "support.started", `Started a ${session.mode === "full" ? "full-access" : "read-only"} support session (${data.minutes} min): ${session.reason}`, client);
-    return {url: `https://dash.octopos.uz/?tenant=${client.slug}&support-session=${session.id}`, expiresAt: session.expiresAt, session} satisfies T.ImpersonationResult;
+    return {url: `${dashUrl(client.slug)}/?support-session=${session.id}`, expiresAt: session.expiresAt, session} satisfies T.ImpersonationResult;
   },
   "GET /operator.supportSessions.list": ({query}) => {
     let list = supportSessions.slice();
@@ -1183,14 +1215,28 @@ let handlers: Record<string, Handler> = {
   "POST /operator.notifications.test": ({body, me}) => {
     if (body.target === "team" && !teamNotifications.telegram.connected) fail(422, "NOT_CONNECTED", "Connect a Telegram group first.");
     let mine = me ? (myNotifications[me.id] ??= defaultMine()) : undefined;
-    if (body.target === "me" && !mine?.telegramUsername) fail(422, "NOT_CONNECTED", "Add your Telegram username first, and start a chat with @octopos_helm_bot.");
+    if (body.target === "me" && (!mine || !telegramOf(me!).connected)) fail(422, "NOT_CONNECTED", "Connect your Telegram first: Settings → Notifications → Connect Telegram.");
     return {sentAt: new Date().toISOString()};
+  },
+  // ---- Telegram (@octopos_helm_bot) ------------------------------------------------------------
+  "GET /operator.telegram.me": ({me}) => telegramOf(requireMe(me)),
+  "POST /operator.telegram.link": ({me}) => {
+    let operator = requireMe(me);
+    let code = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => "abcdefghjkmnpqrstuvwxyz23456789"[b % 31]).join("");
+    let expiresAt = new Date(Date.now() + 10 * 60_000).toISOString();
+    telegramCodes[code] = {operatorID: operator.id, expiresAt: Date.parse(expiresAt), createdAt: Date.now()};
+    return {code, url: `https://t.me/${TELEGRAM_BOT}?start=${code}`, expiresAt} satisfies T.TelegramLinkCode;
+  },
+  "POST /operator.telegram.unlink": ({me}) => {
+    let operator = requireMe(me);
+    delete telegramLinks[operator.id];
+    log(me, "team.telegramUnlinked", `${operator.firstName} ${operator.lastName} disconnected Telegram`);
+    return telegramOf(operator);
   },
   "GET /operator.notifications.me.get": ({me}) => (myNotifications[requireMe(me).id] ??= defaultMine()),
   "POST /operator.notifications.me.update": ({body, me}) => {
     let data = body as unknown as T.MyNotificationSettings;
-    if (data.telegramUsername && !/^@?\w{5,32}$/.test(data.telegramUsername)) fail(422, "USERNAME_INVALID", "A Telegram username is 5–32 letters, digits or underscores.");
-    myNotifications[requireMe(me).id] = {...data, telegramUsername: data.telegramUsername ? `@${data.telegramUsername.replace(/^@/, "")}` : undefined};
+    myNotifications[requireMe(me).id] = {digest: data.digest, includes: data.includes};
     return myNotifications[requireMe(me).id];
   },
   "GET /operator.notifications.me.preview": ({me}) => {
@@ -1374,6 +1420,29 @@ let teamNotifications: T.TeamNotificationSettings = {
   offlineHours: 4,
   offlineKeyAccountsOnly: true,
 };
+
+const TELEGRAM_BOT = "octopos_helm_bot";
+let telegramLinks: Record<string, T.TelegramLink> = {};
+let telegramCodes: Record<string, {operatorID: string; expiresAt: number; createdAt: number}> = {};
+
+/**
+ * Demo mode has no bot to press Start in, so a link code counts as pressed five seconds after it was
+ * made, while Helm is waiting for it. The real server links only when the bot redeems the code.
+ */
+function telegramOf(operator: T.Operator): T.TelegramLink {
+  for (let [code, pending] of Object.entries(telegramCodes)) {
+    if (pending.operatorID !== operator.id || pending.expiresAt < Date.now() || Date.now() - pending.createdAt < 5000) continue;
+    delete telegramCodes[code];
+    telegramLinks[operator.id] = {
+      connected: true,
+      username: `@${operator.firstName.toLowerCase()}_${operator.lastName.toLowerCase().slice(0, 3)}`,
+      firstName: operator.firstName,
+      linkedAt: new Date().toISOString(),
+    };
+    log(operator, "team.telegramLinked", `${operator.firstName} ${operator.lastName} connected Telegram`);
+  }
+  return telegramLinks[operator.id] ?? {connected: false};
+}
 
 function defaultMine(): T.MyNotificationSettings {
   return {digest: {enabled: true, time: "08:30", days: "weekdays"}, includes: {tasks: true, renewals: true, overdue: true, fleet: true, myClientsOnly: false}};
@@ -1615,12 +1684,40 @@ function currentOperator() {
   return operators.find((o) => o.id === session.slice(5) && o.status !== "disabled");
 }
 
+/**
+ * What each endpoint needs, read from api-spec/operator.yml's x-capability, so the demo refuses
+ * exactly what the real server will and a role built here behaves the same once it is real.
+ * "a" or "[a, b]" (any one of them); no x-capability means any signed-in operator.
+ */
+let REQUIRED: Record<string, T.Capability[]> = (() => {
+  let required: Record<string, T.Capability[]> = {};
+  let path = "";
+  let method = "";
+  for (let line of spec.split("\n")) {
+    let match = /^ {2}(\/operator\.[\w.]+):/.exec(line);
+    if (match) path = match[1];
+    match = /^ {4}(get|post):/.exec(line);
+    if (match) method = match[1].toUpperCase();
+    match = /^ {6}x-capability: (.+)$/.exec(line);
+    if (match && path) required[`${method} ${path}`] = match[1].replace(/[[\]\s]/g, "").split(",") as T.Capability[];
+  }
+  return required;
+})();
+
+function allowed(me: T.Operator, key: string) {
+  let needed = REQUIRED[key];
+  if (!needed) return true;
+  let permissions = signedIn(me).permissions;
+  return Boolean(permissions["*"]) || needed.some((capability) => permissions[capability]);
+}
+
 export async function handleMock<R>(method: Method, path: string, options: RequestOptions): Promise<R> {
   await new Promise((resolve) => setTimeout(resolve, 180 + Math.random() * 320));
   let handler = handlers[`${method} ${path}`];
   if (!handler) fail(404, "NOT_FOUND", `The mock has no ${method} ${path}. Add it to src/api/mock/index.ts.`);
   let me = currentOperator();
   if (!path.startsWith("/operator.auth.signIn") && path !== "/operator.auth.verifyTwoFactor") requireMe(me);
+  if (me && !allowed(me, `${method} ${path}`)) fail(403, "FORBIDDEN", `Your role does not allow this (${REQUIRED[`${method} ${path}`].join(" or ")}).`);
   let query = Object.fromEntries(Object.entries((options.query ?? {}) as Record<string, unknown>).map(([k, v]) => [k, v === undefined || v === null ? undefined : String(v)]));
   // Copy out, so a page that holds on to a result never sees it change under it without a refetch.
   let result = await handler({query, body: (options.body ?? {}) as Record<string, unknown>, me});

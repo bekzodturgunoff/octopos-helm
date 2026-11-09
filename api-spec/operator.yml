@@ -6,7 +6,7 @@ openapi: "3.0.0"
 info:
   version: "0.1.0"
   title: OCTOPOS Operator API (Helm)
-  description: "The cross-tenant API behind Octopos Helm. RPC-style paths like the rest of kdsx-api: GET for reads with query parameters, POST for writes with a JSON body. Every operation except signIn requires `Authorization: Bearer <sessionID>`. x-capability names the permission the server must check; the UI only hides what this would refuse."
+  description: "The cross-tenant API behind Octopos Helm. RPC-style paths like the rest of kdsx-api: GET for reads with query parameters, POST for writes with a JSON body. Every operation except signIn requires `Authorization: Bearer <sessionID>`. x-capability names the permission the server must check (a list means any one of them; none means any signed-in operator); the UI only hides what this would refuse."
 security:
   - OperatorSession: []
 tags:
@@ -21,6 +21,7 @@ tags:
   - name: OperatorTeam
   - name: OperatorAccess
   - name: OperatorNotifications
+  - name: OperatorTelegram
 paths:
   /operator.auth.signIn:
     post:
@@ -286,7 +287,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-      x-capability: client.read
+      x-capability: [client.read, billing.read]
   /operator.attention:
     get:
       operationId: getAttention
@@ -443,6 +444,26 @@ paths:
           schema:
             type: string
             format: uuid
+  /operator.clients.places:
+    get:
+      operationId: listClientPlaces
+      tags: [OperatorClients]
+      summary: Every client branch that has a point on the map
+      description: "For Helm's map. Every client the operator may see (all of them, or only the ones they manage when client.read is scoped to assigned clients), one item per branch with coordinates, churned clients included. Filtering happens in the browser: a few hundred points is one small response."
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientPlaces"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+      x-capability: client.read
   /operator.clients.create:
     post:
       operationId: createClient
@@ -956,6 +977,7 @@ paths:
       operationId: listPlans
       tags: [OperatorBilling]
       summary: Plans with counts and MRR
+      description: "Either capability is enough: announcements target clients by plan."
       responses:
         "200":
           description: OK
@@ -975,7 +997,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-      x-capability: billing.read
+      x-capability: [billing.read, announcement.write]
   /operator.billing.renewals:
     get:
       operationId: listRenewals
@@ -1911,6 +1933,98 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /operator.telegram.me:
+    get:
+      operationId: getTelegramLink
+      tags: [OperatorTelegram]
+      summary: "Whether the caller's Telegram is linked to @octopos_helm_bot"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramLink"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /operator.telegram.link:
+    post:
+      operationId: createTelegramLinkCode
+      tags: [OperatorTelegram]
+      summary: "A one-time link that connects the caller's Telegram"
+      description: "Returns https://t.me/octopos_helm_bot?start=<code>. The code is random (12+ characters, a–z and digits, the only characters Telegram's start parameter allows besides _ and -), works once, and expires after 10 minutes. Creating a new one voids the caller's earlier unused codes. Linking replaces any Telegram linked before."
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramLinkCode"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /operator.telegram.unlink:
+    post:
+      operationId: unlinkTelegram
+      tags: [OperatorTelegram]
+      summary: "Disconnect the caller's Telegram"
+      description: "Also ends the bot session issued at redeem, so the bot can no longer act for them. Works from Helm and from the bot's /logout (which calls it with that session)."
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TelegramLink"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /bot.telegram.redeem:
+    post:
+      operationId: redeemTelegramLink
+      tags: [OperatorTelegram]
+      summary: "The bot hands over a link code and the Telegram account that pressed Start"
+      description: "Called only by the bot service, authenticated with BotKey instead of an operator session. Answers 404 CODE_INVALID for an unknown, used or expired code and 403 OPERATOR_DISABLED for a disabled operator. On success the server stores the link (telegramUserID, chatID, username) and returns a new session for that operator: the bot sends it as Bearer on every call it makes for them, so x-capability applies in Telegram exactly as in Helm. Disabling the operator or unlinking ends that session."
+      security:
+        - BotKey: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedeemTelegramLinkData"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedeemTelegramLinkResult"
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /operator.notifications.me.get:
     get:
       operationId: getMyNotifications
@@ -1993,7 +2107,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-      x-capability: billing.read
+      x-capability: report.read
       parameters:
         - name: months
           in: query
@@ -2026,7 +2140,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-      x-capability: billing.read
+      x-capability: report.read
       parameters:
         - name: months
           in: query
@@ -2115,6 +2229,7 @@ paths:
       operationId: listOperators
       tags: [OperatorTeam]
       summary: Everyone with Helm access
+      description: "Any signed-in operator, no capability: tasks and client pages pick teammates from it."
       responses:
         "200":
           description: OK
@@ -2134,7 +2249,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-      x-capability: team.read
   /operator.team.invite:
     post:
       operationId: inviteOperator
@@ -2191,6 +2305,7 @@ paths:
       operationId: listRoles
       tags: [OperatorAccess]
       summary: All roles with member counts
+      description: "Either capability is enough: inviting someone or changing their role means choosing one."
       responses:
         "200":
           description: OK
@@ -2210,7 +2325,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-      x-capability: role.read
+      x-capability: [role.read, team.write]
   /operator.roles.get:
     get:
       operationId: getRole
@@ -2347,6 +2462,11 @@ components:
       type: http
       scheme: bearer
       description: A session from operator.auth.signIn. The existing static OperatorToken can be accepted on the same header during migration.
+    BotKey:
+      type: apiKey
+      in: header
+      name: X-Bot-Key
+      description: "The bot service's shared secret (HELM_BOT_KEY in bot/.env). Accepted only on /bot.* paths."
     StepUp:
       type: apiKey
       in: header
@@ -2504,6 +2624,7 @@ components:
         - role.read
         - role.write
         - audit.read
+        - report.read
     OperatorRef:
       type: object
       required: [id, name]
@@ -3063,8 +3184,62 @@ components:
           type: string
         address:
           type: string
+        latitude:
+          type: number
+          format: double
+          description: "Where the branch is, from the tenant's own location (the one delivery uses). Absent until the client sets it."
+        longitude:
+          type: number
+          format: double
+        phone:
+          type: string
         installations:
           type: integer
+    ClientPlace:
+      type: object
+      description: "One branch on Helm's map. Only branches with both coordinates are listed."
+      required: [clientID, clientName, slug, clientStatus, grade, balanceDue, ownerName, location, installations]
+      properties:
+        clientID:
+          type: string
+          format: uuid
+        clientName:
+          type: string
+        slug:
+          type: string
+        clientStatus:
+          $ref: "#/components/schemas/ClientStatus"
+        grade:
+          $ref: "#/components/schemas/HealthGrade"
+        balanceDue:
+          $ref: "#/components/schemas/Money"
+        accountManager:
+          $ref: "#/components/schemas/OperatorRef"
+        ownerName:
+          type: string
+        ownerPhone:
+          type: string
+        city:
+          type: string
+        location:
+          allOf:
+            - $ref: "#/components/schemas/ClientLocation"
+            - type: object
+              required: [latitude, longitude]
+        installations:
+          $ref: "#/components/schemas/ClientInstallations"
+          description: "This branch's installations only (by the node's location), counted like Client.installations."
+    ClientPlaces:
+      type: object
+      required: [items, unplaced]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClientPlace"
+        unplaced:
+          type: integer
+          description: "Branches of these clients that have no coordinates yet."
     ClientDetail:
       allOf:
         - $ref: "#/components/schemas/Client"
@@ -3766,6 +3941,136 @@ components:
                 type: string
               reason:
                 type: string
+    TelegramLink:
+      type: object
+      required: [connected]
+      properties:
+        connected:
+          type: boolean
+        username:
+          type: string
+          description: '"@name", when the account has one.'
+        firstName:
+          type: string
+        linkedAt:
+          type: string
+          format: date-time
+    TelegramLinkCode:
+      type: object
+      required: [code, url, expiresAt]
+      properties:
+        code:
+          type: string
+        url:
+          type: string
+          description: "https://t.me/octopos_helm_bot?start=<code>"
+        expiresAt:
+          type: string
+          format: date-time
+    RedeemTelegramLinkData:
+      type: object
+      required: [code, telegramUserID, chatID]
+      properties:
+        code:
+          type: string
+        telegramUserID:
+          type: integer
+          format: int64
+        chatID:
+          type: integer
+          format: int64
+          description: "The private chat with the bot; where personal messages go."
+        username:
+          type: string
+        firstName:
+          type: string
+        languageCode:
+          type: string
+          description: "Telegram's language_code; the bot answers in uz, ru or en from it."
+    RedeemTelegramLinkResult:
+      type: object
+      required: [sessionID, operator]
+      properties:
+        sessionID:
+          type: string
+        operator:
+          $ref: "#/components/schemas/SignedInOperator"
+    BotEvent:
+      type: object
+      description: "Not an endpoint: what the server POSTs to the bot service at <BOT_URL>/events (header Authorization: Bearer <EVENTS_SECRET>) whenever an AlertEvent fires for the team group, a task is assigned to someone, or a digest is due. The bot formats it in the person's language and adds buttons. Team events go to the chat in TeamNotificationSettings, filtered by its events switches; personal ones to the operator's linked chat."
+      required: [event, to, at]
+      properties:
+        event:
+          oneOf:
+            - $ref: "#/components/schemas/AlertEvent"
+            - type: string
+              enum: [taskAssigned, digest]
+        to:
+          type: object
+          description: "{team: true, chatID} for the team group (chatID from TeamNotificationSettings), or {operatorID} for one person's linked chat"
+          properties:
+            team:
+              type: boolean
+            chatID:
+              type: string
+            operatorID:
+              type: string
+        at:
+          type: string
+          format: date-time
+        client:
+          type: object
+          required: [id, name, slug]
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            slug:
+              type: string
+        node:
+          type: object
+          required: [nodeID, tenantID]
+          properties:
+            nodeID:
+              type: string
+            tenantID:
+              type: string
+            restartCount:
+              type: integer
+            lastExitCode:
+              type: integer
+            offlineSince:
+              type: string
+              format: date-time
+        invoice:
+          type: object
+          required: [id, number, amount]
+          properties:
+            id:
+              type: string
+            number:
+              type: string
+            amount:
+              $ref: "#/components/schemas/Money"
+            daysOverdue:
+              type: integer
+        task:
+          type: object
+          required: [id, title]
+          properties:
+            id:
+              type: string
+            title:
+              type: string
+            dueAt:
+              type: string
+              format: date-time
+            createdBy:
+              $ref: "#/components/schemas/OperatorRef"
+        text:
+          type: string
+          description: "The digest, built from the operator's settings: the same text as notifications.me.preview."
     AlertEvent:
       type: string
       enum: [fleetCrashLooping, fleetOffline, paymentFailed, promiseBroken, clientSigned, trialEnding, clientChurned, noFirstSale]
@@ -3819,8 +4124,6 @@ components:
             days:
               type: string
               enum: [weekdays, everyday]
-        telegramUsername:
-          type: string
         includes:
           type: object
           required: [tasks, renewals, overdue, fleet, myClientsOnly]

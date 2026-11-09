@@ -1,0 +1,6 @@
+# The build context is the whole Helm repo; send only what the image copies.
+*
+!package.json
+!src/lib/fleet.ts
+!bot/package.json
+!bot/src

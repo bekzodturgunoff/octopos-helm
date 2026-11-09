@@ -1,5 +1,5 @@
 import type {TFunction} from "i18next";
-import type {FleetNode} from "@/api";
+import type {FleetNode} from "@/api/types";
 
 export type FleetHealth = "healthy" | "degraded" | "crashLooping" | "misconfigured" | "offline" | "neverStarted" | "retired";
 

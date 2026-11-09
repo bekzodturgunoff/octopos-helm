@@ -104,11 +104,24 @@ export function PermissionsEditor({
 
   let permissionCount = fullAccess ? allCapabilities.length : selected.size;
 
+  // Doing something needs seeing it first: "Manage clients" without "View clients" would give a role
+  // a button on a page it cannot open. So ticking a write ticks its read, and unticking a read
+  // unticks what depends on it.
+  let readOf = (value: Capability) => {
+    let read = `${value.split(".")[0]}.read` as Capability;
+    return read !== value && capabilityMap.has(read) ? read : undefined;
+  };
   let toggle = (value: Capability) =>
     setSelected((prev) => {
       let next = new Map(prev);
-      if (next.has(value)) next.delete(value);
-      else next.set(value, maxScope(capabilityMap.get(value)?.scopes));
+      if (next.has(value)) {
+        next.delete(value);
+        for (let other of [...next.keys()]) if (readOf(other) === value) next.delete(other);
+      } else {
+        next.set(value, maxScope(capabilityMap.get(value)?.scopes));
+        let read = readOf(value);
+        if (read && !next.has(read)) next.set(read, next.get(value) ?? maxScope(capabilityMap.get(read)?.scopes));
+      }
       return next;
     });
 

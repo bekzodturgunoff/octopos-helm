@@ -19,10 +19,10 @@ import {uzs} from "@/lib/money";
 import {can} from "@/permission";
 import {cn} from "@/lib/utils";
 
-export let Route = createFileRoute("/_auth/reports")({
+export let Route = createFileRoute("/_auth/billing/reports")({
   beforeLoad: ({context}) => {
-    if (!can(context.user, "billing.read")) throw redirect({to: "/403"});
-    return {backLink: {to: "/"}};
+    if (!can(context.user, "report.read")) throw redirect({to: "/403"});
+    return {backLink: {to: "/billing"}};
   },
   loader: ({context}) => {
     context.queryClient.prefetchQuery(getRevenueMovementOptions({query: {months: 12}}));

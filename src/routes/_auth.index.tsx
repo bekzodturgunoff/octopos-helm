@@ -30,6 +30,8 @@ function renewalWindow() {
 
 export let Route = createFileRoute("/_auth/")({
   loader: ({context}) => {
+    // Both are client.read on the server; a role without it gets the rest of the page, not a 403.
+    if (!can(context.user, "client.read")) return;
     context.queryClient.prefetchQuery(getOverviewMetricsOptions());
     context.queryClient.prefetchQuery(getAttentionOptions());
   },
@@ -52,15 +54,23 @@ function Overview() {
         <h1 className="text-3xl font-semibold tracking-tight">{t(greetingKey(), {defaultValue: "Hello, {{name}}", name: user.firstName})}</h1>
         <p className="text-on-surface-secondary text-sm">{t("common:overviewHint", {defaultValue: "Who pays, who is about to, and what is broken — across every client."})}</p>
       </div>
-      <Suspense fallback={<MetricsSkeleton />}>
-        <Metrics />
-      </Suspense>
+      {can(user, "client.read") ? (
+        <Suspense fallback={<MetricsSkeleton />}>
+          <Metrics />
+        </Suspense>
+      ) : (
+        <p className="bg-surface-300 text-on-surface-secondary rounded-xl p-4 text-sm">
+          {t("common:overviewLimited", {defaultValue: "Your role does not include clients, so there are no numbers here. Use the menu to open the pages your role allows."})}
+        </p>
+      )}
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-5">
-        <Section className="lg:col-span-3" title={t("common:needsAttention", {defaultValue: "Needs attention"})}>
-          <Suspense fallback={<ListSkeleton rows={6} />}>
-            <Attention />
-          </Suspense>
-        </Section>
+        {can(user, "client.read") ? (
+          <Section className="lg:col-span-3" title={t("common:needsAttention", {defaultValue: "Needs attention"})}>
+            <Suspense fallback={<ListSkeleton rows={6} />}>
+              <Attention />
+            </Suspense>
+          </Section>
+        ) : null}
         {can(user, "billing.read") ? (
           <Section
             className="lg:col-span-2"
