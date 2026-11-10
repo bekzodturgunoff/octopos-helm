@@ -1,5 +1,6 @@
 import type {ApiErrorBody} from "./types";
 import {getLocale, getSession} from "@/constants";
+import i18n from "i18next";
 
 // The one door every request goes through. Swapping it for kdsx-api's generated client later
 // changes nothing above it: pages only ever see `xxxOptions()` and `xxxMutation()`.
@@ -65,7 +66,9 @@ export async function request<T>(method: Method, path: string, options: RequestO
   // Bearer, like the API's existing OperatorToken scheme on operator.fleet.nodes — a session issued by
   // operator.auth.signIn travels the same way, so one security scheme covers every operator.* call.
   if (session) headers.set("Authorization", `Bearer ${session}`);
-  let locale = getLocale();
+  // The chosen language, or the one Helm is showing when nobody has chosen: server text (errors,
+  // the digest) always comes back in the language on screen.
+  let locale = getLocale() || i18n.language;
   if (locale) headers.set("Accept-Language", locale);
   let step = currentStepUp();
   if (step) headers.set("X-Step-Up", step);

@@ -54,7 +54,7 @@ Helm displays these and never computes them, so every screen and the bot agree:
 - **Payment chasing:** retries, reminders, the grace period and suspension, following `billing.dunning` settings.
 - **Team alerts:** when an event switched on in `TeamNotificationSettings` fires (`fleetCrashLooping`, `fleetOffline`, `paymentFailed`, `promiseBroken`, `clientSigned`, `trialEnding`, `clientChurned`, `noFirstSale`), after its thresholds, send it to the bot (see 6).
 - **Task assigned:** when someone assigns a task to someone else, send `taskAssigned` to the bot.
-- **Digest:** at each person's digest time, send `digest` to the bot with the same text as `notifications.me.preview`.
+- **Digest:** at each person's digest time, send `digest` to the bot with the same text as `notifications.me.preview`. Write it in the person's language: `Accept-Language` for the preview, and for the scheduled one the `languageCode` stored when they linked Telegram (Uzbek, Russian or English; Uzbek otherwise). The demo backend's `DIGEST_WORDS` has the wording in all three.
 
 ## 6. Telegram (@octopos_helm_bot)
 

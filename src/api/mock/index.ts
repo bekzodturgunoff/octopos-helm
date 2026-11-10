@@ -1,7 +1,8 @@
 import {ApiError, currentStepUp, type Method, type RequestOptions} from "../client";
 import {randomSecret, sha256, verifyTotp} from "./totp";
 import type * as T from "../types";
-import {getSession} from "@/constants";
+import {getLocale, getSession} from "@/constants";
+import i18n from "i18next";
 import {appLabel, formatRemoteID, remoteApp, REMOTE_APPS} from "@/lib/remote-apps";
 import {DASH_DOMAIN, dashUrl, SLUG_PATTERN} from "@/lib/dash";
 import spec from "../../../api-spec/operator.yml?raw";
@@ -96,6 +97,51 @@ function summary(client: MockClient): T.Client {
 
 let ATTENTION_ORDER = {high: 0, medium: 1, low: 2};
 let PRIORITY_ORDER: Record<T.TaskPriority, number> = {high: 0, normal: 1, low: 2};
+
+type Lang = "uz" | "ru" | "en";
+
+/** The language of the current request: what client.ts sends as Accept-Language. */
+function requestLanguage(): Lang {
+  let lang = (getLocale() || i18n.language || "en").slice(0, 2);
+  return lang === "uz" || lang === "ru" ? lang : "en";
+}
+
+let UZ_WEEKDAYS = ["yakshanba", "dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba"];
+let UZ_MONTHS = ["yanvar", "fevral", "mart", "aprel", "may", "iyun", "iyul", "avgust", "sentabr", "oktabr", "noyabr", "dekabr"];
+
+/** "Tuesday 10 November", in Tashkent. Browsers carry no Uzbek date names, so Uzbek is spelled out. */
+function digestDate(lang: Lang, at = new Date()) {
+  let local = new Date(at.toLocaleString("en-US", {timeZone: "Asia/Tashkent"}));
+  if (lang === "uz") return `${local.getDate()}-${UZ_MONTHS[local.getMonth()]}, ${UZ_WEEKDAYS[local.getDay()]}`;
+  return at.toLocaleDateString(lang === "ru" ? "ru-RU" : "en-GB", {timeZone: "Asia/Tashkent", weekday: "long", day: "numeric", month: "long"});
+}
+
+let DIGEST_WORDS: Record<Lang, {greeting: (name: string) => string; tasks: (due: number, open: number) => string; renewals: string; manual: string; overdue: string; fleet: string}> = {
+  en: {
+    greeting: (name) => `Good morning, ${name}!`,
+    tasks: (due, open) => `Tasks due today or overdue: ${due} (open: ${open})`,
+    renewals: "Renewing this week",
+    manual: "manual",
+    overdue: "Overdue",
+    fleet: "Installations not running",
+  },
+  uz: {
+    greeting: (name) => `Xayrli tong, ${name}!`,
+    tasks: (due, open) => `Bugungi va muddati o'tgan vazifalar: ${due} (ochiq: ${open})`,
+    renewals: "Shu hafta yangilanadi",
+    manual: "qo'lda",
+    overdue: "Muddati o'tgan",
+    fleet: "Ishlamayotgan o'rnatmalar",
+  },
+  ru: {
+    greeting: (name) => `Доброе утро, ${name}!`,
+    tasks: (due, open) => `Задачи на сегодня и просроченные: ${due} (открыто: ${open})`,
+    renewals: "Продления на этой неделе",
+    manual: "вручную",
+    overdue: "Просрочено",
+    fleet: "Не работают установки",
+  },
+};
 
 let handlers: Record<string, Handler> = {
   // ---- Auth -------------------------------------------------------------------------------------
@@ -1242,27 +1288,31 @@ let handlers: Record<string, Handler> = {
   "GET /operator.notifications.me.preview": ({me}) => {
     let operator = requireMe(me);
     let settings = (myNotifications[operator.id] ??= defaultMine());
-    let lines = [`☀️ Xayrli tong, ${operator.firstName}! Helm · ${new Date().toLocaleDateString("en", {weekday: "long", day: "numeric", month: "short"})}`];
+    // Written in the language the request asks for, as the real server does with Accept-Language.
+    let lang = requestLanguage();
+    let w = DIGEST_WORDS[lang];
+    let today = digestDate(lang);
+    let lines = [`☀️ ${w.greeting(operator.firstName)} Helm · ${today}`];
     let mineOnly = settings.includes.myClientsOnly;
     let ours = (clientID?: string) => !mineOnly || (clientID ? clients.find((c) => c.id === clientID)?.accountManager?.id === operator.id : false);
     if (settings.includes.tasks) {
       let open = tasks.filter((t) => t.status === "open" && t.assignee?.id === operator.id);
       let due = open.filter((t) => t.dueAt && Date.parse(t.dueAt) < Date.now() + 86400000);
-      lines.push("", `📝 Tasks: ${due.length} due today or overdue (${open.length} open)`, ...due.slice(0, 5).map((t) => `  • ${t.title}`));
+      lines.push("", `📝 ${w.tasks(due.length, open.length)}`, ...due.slice(0, 5).map((t) => `  • ${t.title}`));
     }
     if (settings.includes.renewals) {
       let soon = clients.filter(
         (c) => ours(c.id) && c.subscription && c.status !== "churned" && Date.parse(c.subscription.periodEnd) > Date.now() && Date.parse(c.subscription.periodEnd) < Date.now() + 7 * 86400000,
       );
-      lines.push("", `📅 Renewing this week: ${soon.length}`, ...soon.slice(0, 5).map((c) => `  • ${c.name} — ${c.subscription!.amount.display}${c.subscription!.nativeBilling ? "" : " (manual)"}`));
+      lines.push("", `📅 ${w.renewals}: ${soon.length}`, ...soon.slice(0, 5).map((c) => `  • ${c.name} — ${c.subscription!.amount.display}${c.subscription!.nativeBilling ? "" : ` (${w.manual})`}`));
     }
     if (settings.includes.overdue) {
       let late = clients.filter((c) => ours(c.id) && c.subscription?.status === "pastDue");
-      lines.push("", `⚠️ Overdue: ${late.length}`, ...late.slice(0, 5).map((c) => `  • ${c.name} — ${c.balanceDue.display}`));
+      lines.push("", `⚠️ ${w.overdue}: ${late.length}`, ...late.slice(0, 5).map((c) => `  • ${c.name} — ${c.balanceDue.display}`));
     }
     if (settings.includes.fleet) {
       let failing = clients.filter((c) => ours(c.id) && c.installations.failing > 0);
-      lines.push("", `🖥 Installations not running: ${failing.length}`, ...failing.slice(0, 5).map((c) => `  • ${c.name}`));
+      lines.push("", `🖥 ${w.fleet}: ${failing.length}`, ...failing.slice(0, 5).map((c) => `  • ${c.name}`));
     }
     return {text: lines.join("\n")};
   },
